@@ -1,0 +1,20 @@
+{
+  "verified": true,
+  "environment": "local Docker with isolated PostgreSQL schema",
+  "image": "resolveflow-hosted:verify",
+  "cpu_limit": 0.1,
+  "memory_limit_mib": 512,
+  "readiness_seconds": 63.064,
+  "observed_memory": "203MiB / 512MiB",
+  "non_root_uid": 10001,
+  "credential_login": true,
+  "anonymous_writes_blocked": true,
+  "local_demo_disabled": true,
+  "exact_approval": true,
+  "effects_before_restart": 1,
+  "effects_after_restart": 1,
+  "host_port_changed_on_restart": true,
+  "packaged_reference_evaluation": true,
+  "remote_host_verified": false,
+  "public_https_verified": false
+}

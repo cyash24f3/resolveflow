@@ -10,8 +10,8 @@ Decision date: 30 September 2026. The project is usable with no provider account
 | Live model (optional) | Ollama locally; one configurable OpenAI-compatible adapter | No API bill; model download, memory and electricity are local resources |
 | Hosted live model (optional) | Groq Free Plan, manually supplied key | Remain on Free Plan; rate limits are not a billing cap for a paid account |
 | Source and CI | Public [GitHub repository](https://github.com/cyash24f3/resolveflow), standard GitHub-hosted Linux runner | Public-repository standard runners are free; no larger runner selected |
-| Remote database | Neon Free Plan | Cloud target; project selection pending, not provisioned |
-| Deployment | Render Free Python web service + local Docker Compose | Cloud target prepared; sleeps on idle, no paid dedicated worker |
+| Remote database | Neon Free Plan | Free Plan confirmed; dedicated ResolveFlow project selected |
+| Deployment | Render Free Python web service + local Docker Compose | Cloud target confirmed; sleeps on idle, no paid dedicated worker |
 
 The workflow uses `ubuntu-latest`, a standard hosted runner. GitHub documents free Actions usage for public repositories using standard runners: [Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions). No paid runner, hosting plan or billing setting was enabled.
 
@@ -52,4 +52,4 @@ For 24 GB unified memory, begin with one model at a time and one worker. An 8B q
 
 An Air is fanless: sustained inference may slow as it warms. Measure your selected model before increasing concurrency. The 1 TB SSD has ample nominal room for this source project; actual available space and model sizes must be checked before downloads. No model weights were automatically downloaded.
 
-Docker Desktop licensing is subject to its terms, including personal/student use: [official Mac installation guidance](https://docs.docker.com/desktop/setup/install/mac-install/). The requested cloud path is [Render Free](https://render.com/docs/free) and [Neon Free](https://neon.com/blog/building-patterns-unlocked-by-scale-to-zero). See [deployment setup and verification status](DEPLOYMENT.md). Remote hosting remains unverified pending account access; a sleeping process pauses the worker and needs an incoming request to resume.
+Docker Desktop licensing is subject to its terms, including personal/student use: [official Mac installation guidance](https://docs.docker.com/desktop/setup/install/mac-install/). The requested cloud path is [Render Free](https://render.com/docs/free) and [Neon Free](https://neon.com/blog/building-patterns-unlocked-by-scale-to-zero). See [deployment setup and verification status](DEPLOYMENT.md). Remote hosting remains unverified pending platform verification; a sleeping process pauses the worker and needs an incoming request to resume.

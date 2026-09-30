@@ -7,7 +7,7 @@ services:
     repo: https://github.com/cyash24f3/resolveflow
     branch: main
     plan: free
-    region: oregon
+    region: ohio
     buildCommand: pip install uv==0.10.4 && uv sync --frozen --no-dev
     startCommand: .venv/bin/python -m resolveflow.hosted
     healthCheckPath: /api/v1/ready

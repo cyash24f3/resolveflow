@@ -6,7 +6,7 @@ The cloud target is a single **Free** Render Python web service backed by a sepa
 
 As of 30 September 2026, Render's free web service sleeps after 15 minutes without inbound traffic and can take about a minute to wake. Its filesystem is ephemeral and its free PostgreSQL expires after 30 days; those are the reasons the deployment uses external Neon storage. The API and worker pause together while Render sleeps. A browser request wakes the service and queued work resumes after applicable leases expire. This is a portfolio deployment with sleep and quota limits, not an always-on service. See [Render Free](https://render.com/docs/free).
 
-Neon's Free Plan currently includes 100 CU-hours and 0.5 GB of database storage per project. Keep the project on Free, use one primary compute with scale-to-zero, and place it near Render's region. Select a direct PostgreSQL connection string with TLS (the example Blueprint uses Oregon; choose Neon's nearby US West region). Worker polling keeps the compute active while the web service is awake; it is configured to five seconds to reduce database traffic. The worker is not a mechanism to avoid provider sleep or quotas. Monitor actual database compute/storage usage and host bandwidth/build usage. See [Neon's Free Plan](https://neon.com/blog/building-patterns-unlocked-by-scale-to-zero). Do not add a paid plan or payment method for this deployment; Render can charge overages on an account that has a payment method.
+Neon's Free Plan currently includes 100 CU-hours and 0.5 GB of database storage per project. Keep the project on Free, use one primary compute with scale-to-zero, and place it near Render's region. Select a direct PostgreSQL connection string with TLS (the selected project is in AWS US East 2, matching Render Ohio). Worker polling keeps the compute active while the web service is awake; it is configured to five seconds to reduce database traffic. The worker is not a mechanism to avoid provider sleep or quotas. Monitor actual database compute/storage usage and host bandwidth/build usage. See [Neon's Free Plan](https://neon.com/blog/building-patterns-unlocked-by-scale-to-zero). Do not add a paid plan or payment method for this deployment; Render can charge overages on an account that has a payment method.
 
 Deployment steps:
 
@@ -18,7 +18,7 @@ Deployment steps:
 
 An operator can sign in with the configured role password; share it privately with intended reviewers. Supervisor and developer passwords must remain private. The public example is a clearly labeled illustrative walkthrough; it neither creates a run nor displays private investigations. Optional live inference requires a separately supplied Groq Free Plan key stored as a host secret. It is disabled until verified, with no fixture fallback.
 
-Cloud status: **prepared, Render workspace confirmed; awaiting Neon project selection**. No cloud resource or public application URL has been created or verified yet. Local tests of the hosted process launcher do not establish Render, Neon or remote HTTPS success.
+Cloud status: **accounts and target project confirmed; deployment in progress**. No cloud resource or public application URL has been created or verified yet. Local tests of the hosted process launcher do not establish Render, Neon or remote HTTPS success.
 
 ## Local containers
 
