@@ -1,5 +1,7 @@
 # ResolveFlow
 
+[![Verify sandbox](https://github.com/cyash24f3/resolveflow/actions/workflows/ci.yml/badge.svg)](https://github.com/cyash24f3/resolveflow/actions/workflows/ci.yml)
+
 A support operations agent with typed tools, persistent investigations, exact supervisor approvals, and restart-safe **simulated** business actions. Built as an AI engineering portfolio project. Every customer, order, payment, refund and replacement is fictional.
 
 The model can select investigative tools. Deterministic code controls scope, eligibility and writes. The default fixture demonstrates plumbing without credentials; it does **not** demonstrate model reasoning quality.
@@ -9,6 +11,8 @@ The model can select investigative tools. Deterministic code controls scope, eli
 Python 3.12, uv and Docker Desktop are required. Apple silicon is supported. On the requested MacBook Air M5 (24 GB / 1 TB), run PostgreSQL and the backend locally; no paid database, vector service, hosted agent platform or cloud worker is required.
 
 ```sh
+git clone https://github.com/cyash24f3/resolveflow.git
+cd resolveflow
 uv sync --frozen
 uv run python scripts/bootstrap.py
 docker compose up -d --build

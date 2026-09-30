@@ -1,6 +1,6 @@
 # Acceptance checklist
 
-Verification date: 30 September 2026. Evidence is from actual local execution; no live-provider, remote-deployment or human-review success is invented.
+Verification date: 30 September 2026. Evidence is from actual local execution and GitHub-hosted CI; no live-provider, remote-deployment or human-review success is invented.
 
 | Criterion | Status | Evidence |
 |---|---|---|
@@ -21,4 +21,6 @@ Primary commands actually run: `uv sync --python 3.12`, migrations/seed + Postgr
 
 The first 200 synthetic episodes predate the concurrency repair and subsequent domain/checkpoint hardening. They are preserved honestly as historical outputs. The current CI regression subset includes exposed families and is not a new holdout. No model prompt was tuned on held-out successes. No human semantic labels have been filled.
 
-No remote environment, GitHub-hosted CI run, production capacity, real attachment inspection, real financial effect, model quality score or paid service was verified. The complete credential-free sandbox is the core delivery. Follow `FREE_TIERS.md` to configure a bounded real-provider sample separately.
+The project is published at [cyash24f3/resolveflow](https://github.com/cyash24f3/resolveflow) with public visibility. [GitHub-hosted verification](https://github.com/cyash24f3/resolveflow/actions/runs/36713976013) passed on commit `8ecf691`: frozen dependency installation, Ruff, mypy, JavaScript syntax, migrations/seed, all 41 tests, the deterministic CI evaluation and actual worker crash recovery. `github-ci.json` records the run, commit and step outcomes. The workflow runs on every push and pull request; the README badge reflects the latest result.
+
+No remote application deployment, production capacity, real attachment inspection, real financial effect, model quality score or paid service was verified. The complete credential-free sandbox is the core delivery. Follow `FREE_TIERS.md` to configure a bounded real-provider sample separately.

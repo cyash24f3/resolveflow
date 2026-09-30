@@ -9,9 +9,11 @@ Decision date: 30 September 2026. The project is usable with no provider account
 | Deterministic demos/evaluation | Baseline + clearly labeled fixture | No model calls |
 | Live model (optional) | Ollama locally; one configurable OpenAI-compatible adapter | No API bill; model download, memory and electricity are local resources |
 | Hosted live model (optional) | Groq Free Plan, manually supplied key | Remain on Free Plan; rate limits are not a billing cap for a paid account |
-| CI | GitHub Actions for a public repository | Check account allowance before private-repository use |
+| Source and CI | Public [GitHub repository](https://github.com/cyash24f3/resolveflow), standard GitHub-hosted Linux runner | Public-repository standard runners are free; no larger runner selected |
 | Remote database (optional) | Neon Free Plan | Not required or provisioned; check current account limits |
 | Deployment | Local Docker Compose | No claim of a free always-on cloud worker |
+
+The workflow uses `ubuntu-latest`, a standard hosted runner. GitHub documents free Actions usage for public repositories using standard runners: [Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions). No paid runner, hosting plan or billing setting was enabled.
 
 Groq publishes free-plan rate limits and an OpenAI-compatible endpoint. Exact allowances depend on account/model, and identifiers can change: [rate limits](https://console.groq.com/docs/rate-limits), [compatibility](https://console.groq.com/docs/openai). No free allowance is treated as permission to use a paid account. ResolveFlow cannot infer the billing plan from an API key.
 
