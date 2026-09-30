@@ -45,7 +45,29 @@
   ],
   "committed_reference_evaluation": true,
   "live_provider_verified": false,
-  "persistence_after_platform_redeploy": false,
+  "persistence_after_platform_redeploy": true,
   "resumed_previous_partial_verification": true,
-  "simulated_business_effects_only": true
+  "simulated_business_effects_only": true,
+  "render": {
+    "service_id": "srv-daugnmjncjis73fisc90",
+    "workspace": "cyash",
+    "plan": "free",
+    "region": "ohio",
+    "health_check_path": "/api/v1/ready",
+    "auto_deploy_trigger": "off",
+    "pre_restart_deploy_id": "dep-daugo6me0cbs73dhlqa0",
+    "shutdown_delay_setting": "platform default; Blueprint 130 seconds not applied to direct creation",
+    "source_connection": "Public Git repository URL; GitHub provider not connected",
+    "post_restart_deploy_id": "dep-daumvbfpn0mc738ao1k0",
+    "verified_application_commit": "6a8986ed3863564799c54996cffa6002e5b26658",
+    "platform_deploy_status": "live"
+  },
+  "neon": {
+    "project_id": "bold-cake-51114732",
+    "branch_id": "br-shiny-tooth-b5pn8liz",
+    "plan": "free_v3",
+    "region": "aws-us-east-2",
+    "max_compute_cu": 0.25
+  },
+  "persistence_verified_at": "2026-09-30T20:25:31.428640+00:00"
 }
