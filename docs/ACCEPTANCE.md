@@ -1,6 +1,6 @@
 # Acceptance checklist
 
-Verification date: 30 September 2026. Evidence is from actual local execution and GitHub-hosted CI; no live-provider, remote-deployment or human-review success is invented.
+Verification date: 30 September 2026. Evidence is from actual local execution, GitHub-hosted CI and Render/Neon HTTPS execution. No live-provider or human-review success is invented.
 
 | Criterion | Status | Evidence |
 |---|---|---|
@@ -16,11 +16,14 @@ Verification date: 30 September 2026. Evidence is from actual local execution an
 | 10. Frozen comparison, denominators and failure evidence | Verified for fixture/baseline; live comparison unverified | 100 families, 35/65 split, `episodes-*.jsonl.gz`, reports, retained concurrency failure, blank semantic review CSVs |
 | 11. Containers persist business records and checkpoints | Verified | `containers.json`: Compose down/up preserved 7 runs, 6 proposals, 6 approvals, 5 effects and 93 checkpoints; non-root UID 10001 |
 | 12. Injection, timeout and unsafe calls have observed outcomes | Verified for deterministic guards and mocked provider failures | Tool/scope tests, `test_provider_adapter.py`, named read-timeout scenarios and episode exports |
+| 13. Public cloud host uses free compute and persistent managed DB | HTTPS workflow verified; redeploy persistence check in progress | `cloud-deployment.json`: actual Render Free + Neon Free HTTPS, three-role login, scope/CSRF, clarification, exact approval and rejection; `hosted-container.json`: 0.1 CPU / 512 MiB local launcher restart |
 
 Primary commands actually run: `uv sync --python 3.12`, migrations/seed + PostgresSaver setup, Ruff, mypy, pytest, development/test/CI evaluations, Chromium browser checks, actual separate-process restart, 24-delivery/eight-thread load, Docker build and Compose startup. Current `tests.txt` records the final suite count. `clean-checkout.json` independently records 41 passing tests from a fresh local clone. `docs/openapi.json` is exported from the running container API. Tests use real PostgreSQL; protocol/error tests use explicitly mocked model outputs.
 
 The first 200 synthetic episodes predate the concurrency repair and subsequent domain/checkpoint hardening. They are preserved honestly as historical outputs. The current CI regression subset includes exposed families and is not a new holdout. No model prompt was tuned on held-out successes. No human semantic labels have been filled.
 
-The project is published at [cyash24f3/resolveflow](https://github.com/cyash24f3/resolveflow) with public visibility. [GitHub-hosted verification](https://github.com/cyash24f3/resolveflow/actions/runs/36713976013) passed on commit `8ecf691`: frozen dependency installation, Ruff, mypy, JavaScript syntax, migrations/seed, all 41 tests, the deterministic CI evaluation and actual worker crash recovery. `github-ci.json` records the run, commit and step outcomes. The workflow runs on every push and pull request; the README badge reflects the latest result.
+The project is published at [cyash24f3/resolveflow](https://github.com/cyash24f3/resolveflow) with public visibility. [GitHub-hosted verification](https://github.com/cyash24f3/resolveflow/actions/runs/36713976013) passed on historical commit `8ecf691`: frozen dependency installation, Ruff, mypy, JavaScript syntax, migrations/seed, all 41 tests, the deterministic CI evaluation and actual worker crash recovery. `github-ci.json` records the run, commit and step outcomes. The workflow runs on every push and pull request; the README badge reflects the latest result.
 
-No remote application deployment, production capacity, real attachment inspection, real financial effect, model quality score or paid service was verified. The complete credential-free sandbox is the core delivery. Follow `FREE_TIERS.md` to configure a bounded real-provider sample separately.
+Current [GitHub-hosted checks](https://github.com/cyash24f3/resolveflow/actions/runs/36720491861) passed on `41c691d` with all 56 tests, including the hosted process and remote security configuration guards. The actual [public application](https://resolveflow-wojr.onrender.com) uses Render Free and Neon Free. Its live HTTPS baseline journey passed independently of the local container checks.
+
+No production capacity, real attachment inspection, real financial effect, model quality score or paid service was verified. The complete credential-free sandbox is the core delivery. Follow `FREE_TIERS.md` to configure a bounded real-provider sample separately.

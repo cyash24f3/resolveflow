@@ -1,0 +1,51 @@
+{
+  "verified": true,
+  "url": "https://resolveflow-wojr.onrender.com",
+  "verified_at": "2026-09-30T18:25:22.916262+00:00",
+  "environment": "Render Free + Neon Free over verified public HTTPS",
+  "readiness": {
+    "status": "ready",
+    "database": "available",
+    "checkpointer": "available",
+    "provider": "disabled",
+    "demo_mode": false
+  },
+  "credential_login_all_roles": true,
+  "secure_session_cookie": true,
+  "anonymous_mutations_blocked": true,
+  "local_demo_disabled": true,
+  "csrf_enforced": true,
+  "operator_scope_enforced": true,
+  "public_read_only_example": true,
+  "idempotent_submission_and_decision": true,
+  "unapproved_effects": 0,
+  "operator_approval_denied": true,
+  "stale_hash_denied": true,
+  "clarification_resume": true,
+  "supervisor_approval": true,
+  "supervisor_rejection": true,
+  "rejected_effects": 0,
+  "approved_run_id": "90a42f57-69c3-4a04-b70f-d0ea5e3144b7",
+  "rejected_run_id": "757c8c93-e9a2-491a-a4d1-c203472570ed",
+  "approved_effects": [
+    {
+      "id": "4427bd8f-6faa-447f-bc18-daf9c21b8397",
+      "operation_id": "action:5ccba7bf-5292-4d36-b71d-33021a4e0fa5",
+      "proposal_id": "5ccba7bf-5292-4d36-b71d-33021a4e0fa5",
+      "approval_id": "ee5647d8-d503-42a8-a4e2-57f6d72e0915",
+      "run_id": "90a42f57-69c3-4a04-b70f-d0ea5e3144b7",
+      "order_id": "ORD-1003",
+      "workspace": "demo",
+      "action": "cancellation",
+      "amount_minor": 0,
+      "quantity": 0,
+      "currency": "INR",
+      "created_at": "2026-09-30T13:23:41.010063+00:00"
+    }
+  ],
+  "committed_reference_evaluation": true,
+  "live_provider_verified": false,
+  "persistence_after_platform_redeploy": false,
+  "resumed_previous_partial_verification": true,
+  "simulated_business_effects_only": true
+}

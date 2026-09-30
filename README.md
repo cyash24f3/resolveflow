@@ -2,6 +2,8 @@
 
 [![Verify sandbox](https://github.com/cyash24f3/resolveflow/actions/workflows/ci.yml/badge.svg)](https://github.com/cyash24f3/resolveflow/actions/workflows/ci.yml)
 
+**Live app: [resolveflow-wojr.onrender.com](https://resolveflow-wojr.onrender.com)** · [Public source](https://github.com/cyash24f3/resolveflow)
+
 A support operations agent with typed tools, persistent investigations, exact supervisor approvals, and restart-safe **simulated** business actions. Built as an AI engineering portfolio project. Every customer, order, payment, refund and replacement is fictional.
 
 The model can select investigative tools. Deterministic code controls scope, eligibility and writes. The default fixture demonstrates plumbing without credentials; it does **not** demonstrate model reasoning quality.
@@ -58,7 +60,9 @@ Live mode is disabled by default and never falls back to a fixture. See [free se
 
 [`render.yaml`](render.yaml) prepares one free Render Python web service and a separately provisioned Neon Free Plan database. The hosted runtime runs the API and worker as separate supervised processes, keeps all durable state in PostgreSQL, disables local demo sign-in, and requires secure cookies and strong role passwords. Visitors can view a read-only example without credentials.
 
-Follow the [cloud deployment steps](docs/DEPLOYMENT.md). Render and Neon targets are confirmed; deployment verification is in progress. Free hosting sleeps when idle; requests wake the service and queued work resumes from persistent state. A live inference provider remains optional and disabled by default.
+The [live HTTPS app](https://resolveflow-wojr.onrender.com) is deployed in the `cyash` Render workspace (Free, Ohio), using a dedicated Neon Free database in AWS US East 2 capped at 0.25 CU. It runs independently of the developer’s Mac. Select **View public example** without a password, or use privately shared role credentials to investigate fictional requests. Public HTTPS checks verified login, scope, CSRF, clarification, exact approval, rejection and the actual ledger. Cloud restart verification is in progress.
+
+Follow the [cloud deployment steps and evidence](docs/DEPLOYMENT.md). Future `main` updates deploy after GitHub checks pass. Free hosting sleeps when idle; requests wake the service and queued work resumes from persistent state. A live inference provider remains optional and disabled by default.
 
 ## Verify
 
@@ -88,4 +92,4 @@ uv run python -m resolveflow.evaluation.runner --split test
 
 See [acceptance evidence](docs/ACCEPTANCE.md), [evaluation limitations](docs/EVALUATION.md), [architecture and transactions](docs/ARCHITECTURE.md), [policy](docs/POLICY.md), [API examples](docs/API.md), [deployment](docs/DEPLOYMENT.md), and [learning guide](docs/LEARNING.md).
 
-The live-provider comparison, remote deployment, and human semantic review have separate **unverified** status. Synthetic fixture/baseline passes are not production accuracy, a security guarantee, or evidence that a model resisted injection.
+Remote HTTPS deployment is verified separately from the local tests. The live-provider comparison and human semantic review remain **unverified**. Synthetic fixture/baseline passes are not production accuracy, a security guarantee, or evidence that a model resisted injection.
