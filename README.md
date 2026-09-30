@@ -60,6 +60,8 @@ uv run pytest -q
 uv run python -m resolveflow.evaluation.runner --split ci
 uv run python scripts/recovery_demo.py
 uv run python scripts/load_demo.py
+# Verify the committed version through a local clone and isolated DB schema:
+uv run python scripts/clean_checkout.py
 # With the API and worker running (uses a separate fresh sandbox order):
 uv run playwright install chromium
 uv run python scripts/browser_smoke.py

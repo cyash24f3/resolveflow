@@ -1,0 +1,35 @@
+{
+  "verified_commit": "6709932b33a6dafb6714c465738eb9c82546da64",
+  "clean_local_clone": true,
+  "fresh_isolated_postgresql_schema": true,
+  "credentials_committed": false,
+  "provider_called": false,
+  "steps": [
+    {
+      "command": "git clone (local repository)",
+      "exit_code": 0,
+      "result": ""
+    },
+    {
+      "command": "uv sync --frozen",
+      "exit_code": 0,
+      "result": ""
+    },
+    {
+      "command": "uv run python scripts/bootstrap.py",
+      "exit_code": 0,
+      "result": "Created .env (mode 0600). Demo role passwords are local, generated, and shared only through your private .env."
+    },
+    {
+      "command": "uv run python -m resolveflow.cli init",
+      "exit_code": 0,
+      "result": "Fictional sandbox initialized; persistent checkpoints enabled."
+    },
+    {
+      "command": "uv run pytest -q",
+      "exit_code": 0,
+      "result": ".........................................                                [100%]\n41 passed in 46.43s"
+    }
+  ],
+  "all_passed": true
+}

@@ -1,0 +1,74 @@
+{
+  "experiment": "Compose down/up without deleting named volume",
+  "counts_before": {
+    "runs": 7,
+    "proposals": 6,
+    "approvals": 6,
+    "effects": 5,
+    "checkpoints": 93
+  },
+  "counts_after": {
+    "runs": 7,
+    "proposals": 6,
+    "approvals": 6,
+    "effects": 5,
+    "checkpoints": 93
+  },
+  "persisted": true,
+  "readiness": {
+    "status": "ready",
+    "database": "available",
+    "checkpointer": "available",
+    "provider": "disabled",
+    "demo_mode": true
+  },
+  "service_states": {
+    "api": "running",
+    "db": "running",
+    "worker": "running"
+  },
+  "service_health": {
+    "api": "healthy",
+    "db": "healthy",
+    "worker": ""
+  },
+  "image_api_uid": "10001",
+  "loopback_api_port": 8090,
+  "loopback_db_port": 55432,
+  "remote_deployment_verified": false,
+  "observed_resources": [
+    {
+      "BlockIO": "1.33MB / 12.3kB",
+      "CPUPerc": "0.25%",
+      "Container": "resolveflow-api-1",
+      "ID": "49f7629a7c44",
+      "MemPerc": "21.86%",
+      "MemUsage": "111.9MiB / 512MiB",
+      "Name": "resolveflow-api-1",
+      "NetIO": "9.09kB / 20.7kB",
+      "PIDs": "4"
+    },
+    {
+      "BlockIO": "0B / 12.3kB",
+      "CPUPerc": "0.42%",
+      "Container": "resolveflow-worker-1",
+      "ID": "2e21ee041c73",
+      "MemPerc": "11.96%",
+      "MemUsage": "91.86MiB / 768MiB",
+      "Name": "resolveflow-worker-1",
+      "NetIO": "90.3kB / 84.5kB",
+      "PIDs": "3"
+    },
+    {
+      "BlockIO": "6.22MB / 618kB",
+      "CPUPerc": "0.19%",
+      "Container": "resolveflow-db-1",
+      "ID": "56864ab10611",
+      "MemPerc": "3.82%",
+      "MemUsage": "29.36MiB / 768MiB",
+      "Name": "resolveflow-db-1",
+      "NetIO": "103kB / 107kB",
+      "PIDs": "9"
+    }
+  ]
+}
