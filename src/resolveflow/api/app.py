@@ -89,7 +89,11 @@ def invalid_request(request, exc):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return TEMPLATES.get_template("index.html").render()
+    cfg = get_settings()
+    return TEMPLATES.get_template("index.html").render(
+        demo_mode=cfg.demo_mode,
+        environment_label="HOSTED SANDBOX" if cfg.remote_deployment else "LOCAL SANDBOX",
+    )
 
 
 @app.get("/api/v1/health")
@@ -541,9 +545,11 @@ def evaluations(scope=Depends(identity)):
     import json
 
     path = Path("docs/evidence/evaluation.json")
+    if not path.exists():
+        path = Path("data/sample/reference-evaluation.json")
     return {
         "items": [json.loads(path.read_text())] if path.exists() else [],
-        "note": "Fixture results are plumbing evidence. Semantic human review and live-provider quality are separate.",
+        "note": "Committed evaluation snapshot, not live hosted traffic. Fixture results are plumbing evidence; semantic human review and live-provider quality are separate.",
     }
 
 

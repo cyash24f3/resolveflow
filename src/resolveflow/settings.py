@@ -1,7 +1,8 @@
 from functools import lru_cache
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     demo_mode: bool = False
     public_read_only: bool = False
     cookie_secure: bool = True
+    remote_deployment: bool = False
     provider_enabled: bool = False
     provider_base_url: str = "http://localhost:11434/v1"
     provider_model: str = "qwen3:8b"
@@ -27,10 +29,41 @@ class Settings(BaseSettings):
     max_active_seconds: float = Field(240, ge=5, le=600)
     job_lease_seconds: int = Field(90, ge=3, le=300)
     max_job_attempts: int = Field(3, ge=1, le=5)
+    worker_idle_seconds: float = Field(0.5, ge=0.1, le=30)
+    database_pool_size: int = Field(5, ge=1, le=10)
+    database_max_overflow: int = Field(3, ge=0, le=10)
     retention_days: int = Field(30, ge=1, le=365)
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def postgres_driver(cls, value):
+        # Hosts commonly supply postgres:// or postgresql:// URLs. Keep passwords
+        # and encoded query parameters intact while selecting the installed driver.
+        url = make_url(value)
+        if url.drivername not in ("postgres", "postgresql", "postgresql+psycopg"):
+            raise ValueError("A PostgreSQL database URL is required")
+        return url.set(drivername="postgresql+psycopg").render_as_string(hide_password=False)
 
     @model_validator(mode="after")
     def secure_config(self):
+        if self.remote_deployment:
+            if self.demo_mode or not self.cookie_secure:
+                raise ValueError("Remote deployments require demo access off and secure cookies")
+            secrets = [
+                self.session_secret.get_secret_value(),
+                self.operator_password.get_secret_value(),
+                self.supervisor_password.get_secret_value(),
+                self.developer_password.get_secret_value(),
+            ]
+            if any(len(value) < 32 or "CHANGE_ME" in value for value in secrets):
+                raise ValueError("Remote deployments require four strong generated secrets")
+            if len(set(secrets)) != len(secrets):
+                raise ValueError("Remote role passwords and signing secret must be distinct")
+            url = make_url(self.database_url)
+            if url.query.get("sslmode") not in ("require", "verify-ca", "verify-full"):
+                raise ValueError("Remote PostgreSQL connections require TLS")
+            if self.provider_enabled and not self.provider_base_url.startswith("https://"):
+                raise ValueError("Hosted providers must be reachable over HTTPS")
         if self.provider_enabled and not self.provider_base_url.startswith(
             ("http://localhost:", "http://127.0.0.1:", "http://host.docker.internal:", "https://")
         ):

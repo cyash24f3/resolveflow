@@ -1,0 +1,44 @@
+# One free web instance; API and worker remain separate supervised processes.
+# Persistent state lives in a separately provisioned Neon Free Plan database.
+services:
+  - type: web
+    name: resolveflow
+    runtime: python
+    repo: https://github.com/cyash24f3/resolveflow
+    branch: main
+    plan: free
+    region: oregon
+    buildCommand: pip install uv==0.10.4 && uv sync --frozen --no-dev
+    startCommand: .venv/bin/python -m resolveflow.hosted
+    healthCheckPath: /api/v1/ready
+    maxShutdownDelaySeconds: 130
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.13"
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: OPERATOR_PASSWORD
+        generateValue: true
+      - key: SUPERVISOR_PASSWORD
+        generateValue: true
+      - key: DEVELOPER_PASSWORD
+        generateValue: true
+      - key: REMOTE_DEPLOYMENT
+        value: "true"
+      - key: DEMO_MODE
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: PUBLIC_READ_ONLY
+        value: "false"
+      - key: PROVIDER_ENABLED
+        value: "false"
+      - key: WORKER_IDLE_SECONDS
+        value: "5"
+      - key: DATABASE_POOL_SIZE
+        value: "2"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "1"

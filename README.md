@@ -54,6 +54,12 @@ Seed dates are fictional fixed dates; evaluation uses a frozen clock. The UI use
 
 Live mode is disabled by default and never falls back to a fixture. See [free services and Mac setup](docs/FREE_TIERS.md). Provider request/timeout/repair budgets are bounded; unknown usage stays unknown. No live provider was installed or called during the default verification.
 
+## Deploy online for free
+
+[`render.yaml`](render.yaml) prepares one free Render Python web service and a separately provisioned Neon Free Plan database. The hosted runtime runs the API and worker as separate supervised processes, keeps all durable state in PostgreSQL, disables local demo sign-in, and requires secure cookies and strong role passwords. Visitors can view a read-only example without credentials.
+
+Follow the [cloud deployment steps](docs/DEPLOYMENT.md). Render workspace access is confirmed; Neon project selection is pending, so there is currently no verified cloud URL. Free hosting sleeps when idle; requests wake the service and queued work resumes from persistent state. A live inference provider remains optional and disabled by default.
+
 ## Verify
 
 ```sh

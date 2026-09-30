@@ -130,7 +130,7 @@ def main():
             elif args.once:
                 break
             else:
-                stop.wait(0.5)
+                stop.wait(get_settings().worker_idle_seconds)
             if args.once and found:
                 break
 

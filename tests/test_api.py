@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from resolveflow.api import app as module
 from resolveflow.settings import get_settings
@@ -125,3 +126,27 @@ def test_public_mode_forbids_mutations(client, monkeypatch):
         == 403
     )
     assert client.post("/api/v1/auth/demo/developer").status_code == 403
+
+
+def test_hosted_login_and_public_example(client, monkeypatch):
+    cfg = get_settings()
+    monkeypatch.setattr(cfg, "demo_mode", False)
+    monkeypatch.setattr(cfg, "remote_deployment", True)
+    monkeypatch.setattr(cfg, "cookie_secure", True)
+    html = client.get("/").text
+    assert "HOSTED SANDBOX" in html
+    assert 'data-login="supervisor"' not in html
+    assert 'data-demo-mode="false"' in html
+    assert "data-sample" in html
+    for role in ("operator", "supervisor", "developer"):
+        assert client.post("/api/v1/auth/demo/" + role).status_code == 403
+    assert client.get("/api/v1/sample").json()["read_only"]
+    assert client.get("/api/v1/runs").status_code == 401
+    monkeypatch.setattr(cfg, "operator_password", SecretStr("test-only-operator-password"))
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"role": "operator", "password": "test-only-operator-password"},
+    )
+    assert login.status_code == 200
+    cookie = login.headers["set-cookie"].lower()
+    assert "secure" in cookie and "httponly" in cookie and "samesite=strict" in cookie

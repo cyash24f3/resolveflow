@@ -8,8 +8,12 @@ from resolveflow.settings import get_settings
 
 @lru_cache
 def engine():
+    cfg = get_settings()
     return create_engine(
-        get_settings().database_url, pool_pre_ping=True, pool_size=5, max_overflow=3
+        cfg.database_url,
+        pool_pre_ping=True,
+        pool_size=cfg.database_pool_size,
+        max_overflow=cfg.database_max_overflow,
     )
 
 

@@ -1,6 +1,7 @@
 'use strict';
 let session = null, view = 'requests', runs = [], selected = null, detail = null, records = null, report = null;
 let busy = false, stale = false;
+let publicSample = null;
 const $ = selector => document.querySelector(selector);
 const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pretty = value => e(JSON.stringify(value, null, 2));
@@ -37,7 +38,7 @@ function stat(label, value, note) { return `<div class="stat"><span class="stat-
 function render() {
   $('.nav.active')?.classList.remove('active'); $(`[data-view="${view}"]`)?.classList.add('active');
   $('#breadcrumb').innerHTML = `Workspace <span>/</span> ${e({requests:'Requests',approvals:'Approvals',sandbox:'Sandbox records',evaluation:'Evaluation'}[view])}`;
-  if (!session) { $('#content').innerHTML = title('SUPPORT, WITH CERTAINTY','Every resolution starts with evidence.','A reliable support operations agent. Inspect, clarify, review, resolve.') + `<div class="panel">${empty('Your workspace is ready','Sign in to investigate fictional requests and inspect the resulting sandbox records.')}<div class="panel-body"><button class="primary" data-signin>Enter workspace →</button></div></div>`; return; }
+  if (!session) { $('#content').innerHTML = title('SUPPORT, WITH CERTAINTY','Every resolution starts with evidence.','A reliable support operations agent. Inspect, clarify, review, resolve.') + (publicSample ? `<section class="panel"><div class="panel-head"><h3>Public example</h3>${pill(publicSample.mode)}</div><div class="panel-body"><div class="callout">Read-only walkthrough of fictional data. No investigation has been executed here.</div><div class="request-quote">${e(publicSample.example.request)}</div>${publicSample.example.steps.map((step,i)=>`<div class="observation"><div><small>STEP ${i+1}</small><h3>${e(words(step))}</h3></div></div>`).join('')}<button class="primary" data-signin>Sign in to run an investigation →</button></div></section>` : `<div class="panel">${empty('Your workspace is ready','Sign in to investigate fictional requests, or explore the public walkthrough.')}<div class="panel-body"><button class="primary" data-signin>Enter workspace →</button> <button class="secondary" data-sample>View public example →</button></div></div>`); return; }
   const warning = stale ? `<div class="callout">Connection interrupted. Showing the last observed state; actions will be revalidated by the server.</div>` : '';
   $('#content').innerHTML = warning + ({requests:renderRequests,approvals:renderApprovals,sandbox:renderSandbox,evaluation:renderEvaluation}[view])();
 }
@@ -96,6 +97,7 @@ function renderEvaluation() {
   return title('DEVELOPER EVIDENCE','Measure what actually happened.','Frozen scenarios, inspectable assertions, honest denominators.') + `<div class="callout">Fixture comparisons demonstrate plumbing, not model intelligence. Live model quality and human semantic review are ${e(report.live_provider_status||'unverified')}.</div>${report.systems ? `<div class="metric-grid">${Object.entries(report.systems).map(([mode,m])=>`<section class="panel"><div class="panel-head"><h3>${e(words(mode))}</h3>${pill(mode)}</div><div class="panel-body"><h2>${m.task_completion.numerator} / ${m.task_completion.denominator}</h2><p class="muted">Observable scenario assertions passed</p><p>${m.policy_violations.numerator} / ${m.policy_violations.denominator} forbidden effects</p><p class="muted">p50 ${m.latency_p50_seconds?.toFixed(3)}s · p95 ${m.latency_p95_seconds?.toFixed(3)}s</p></div></section>`).join('')}</div>`:''}<section class="panel"><div class="panel-head"><h3>Inspectable report</h3></div><div class="panel-body"><pre>${pretty(report)}</pre></div></section>`;
 }
 document.addEventListener('click', async event => {
+  if(event.target.closest('[data-sample]')) { try { publicSample=await api('/sample'); $('#login-dialog').close(); render(); } catch(err) { toast(err.message); } return; }
   const button = event.target.closest('button'); if(!button) return;
   if(button.dataset.login) return login(button.dataset.login);
   if(button.id==='account' || button.hasAttribute('data-signin')) return $('#login-dialog').showModal();
@@ -128,6 +130,6 @@ document.addEventListener('submit', async event => {
     }
   } catch(err) {toast(err.message); if(submit) submit.disabled=false;}
 });
-async function boot() {try {session=await api('/auth/me'); updateAccount(); await refresh();} catch {setTimeout(()=>$('#login-dialog').showModal(),100);} render();}
+async function boot() {try {session=await api('/auth/me'); updateAccount(); await refresh();} catch {if(document.body.dataset.demoMode==='true') setTimeout(()=>$('#login-dialog').showModal(),100);} render();}
 boot();
 setInterval(async()=>{ if(!session || busy || document.hidden) return; busy=true; const prior=JSON.stringify([runs.map(r=>[r.id,r.status]),detail?.observations?.length]); await refresh(); const next=JSON.stringify([runs.map(r=>[r.id,r.status]),detail?.observations?.length]); if(prior!==next && !document.activeElement?.closest('form')) render(); busy=false; },2000);
