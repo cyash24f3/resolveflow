@@ -1,0 +1,15 @@
+{
+  "experiment": "actual separate-process restart",
+  "mode": "fixture",
+  "fault": "after_business_commit_before_checkpoint",
+  "first_worker_exit": 0,
+  "crashed_worker_exit": 77,
+  "restart_worker_exit": 0,
+  "effects_before_restart": 1,
+  "effects_after_restart": 1,
+  "final_status": "completed",
+  "duplicate_suppression_events": 1,
+  "real_lease_expiry_wait_seconds": 4,
+  "simulated_supervisor": true,
+  "assertions_passed": true
+}

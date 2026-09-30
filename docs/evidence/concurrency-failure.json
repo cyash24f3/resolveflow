@@ -1,0 +1,8 @@
+{
+  "date": "2026-09-30",
+  "source": "pytest tests/test_approval_queue.py::test_two_concurrent_refunds_cannot_exceed_cap",
+  "observed_before_repair": {"successful_concurrent_execute_returns": 2, "required": 1, "test_passed": false},
+  "cause": "The SQLAlchemy identity map reused an order loaded before the row lock. The lock query did not refresh it after another transaction committed.",
+  "repair": "Refresh the order row under SELECT FOR UPDATE with populate_existing=True before validating revision and remaining refund amount.",
+  "retest": "See tests.txt and current pytest suite. This original failure is retained; benchmark results never represented proof of universal concurrency safety."
+}

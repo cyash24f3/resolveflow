@@ -1,0 +1,36 @@
+name: Verify sandbox
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: resolveflow
+          POSTGRES_USER: resolveflow
+          POSTGRES_PASSWORD: ci-isolated-not-a-production-secret
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U resolveflow"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://resolveflow:ci-isolated-not-a-production-secret@localhost:5432/resolveflow
+      SESSION_SECRET: ci-only-disposable-session-signing-key-000000
+      DEMO_MODE: "true"
+      COOKIE_SECURE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: {version: "0.10.4", python-version: "3.12"}
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests scripts migrations
+      - run: uv run ruff format --check src tests scripts migrations
+      - run: uv run mypy src
+      - run: node --check src/resolveflow/web/app.js
+      - run: uv run python -m resolveflow.cli init
+      - run: uv run pytest -q
+      - run: uv run python -m resolveflow.evaluation.runner --split ci
+      - run: uv run python scripts/recovery_demo.py

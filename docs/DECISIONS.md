@@ -1,0 +1,13 @@
+# Engineering decision record
+
+- 2026-09-30 / initial scope: local-first PostgreSQL, FastAPI, one modular worker, Jinja and vanilla JavaScript. Chosen for the user's free-only requirement and MacBook Air M5 / 24 GB / 1 TB; no external accounts needed. The existing unrelated port 8000 was occupied, so use 8090.
+- Policy is a versioned bounded rule corpus, not a vector database. Deterministic code enforces conditions; passages cannot alter permission. One item line, one shipment and one simulated payment per order maintain a narrow interview-ready domain.
+- A generic HTTP adapter implements actual tool calling for optional local Ollama / Groq Free Plan. No provider is silently substituted. Fixture and baseline are labeled separately. No model weights were downloaded and no paid credentials were used.
+- Configuration froze before development benchmark: one call per model turn, 12 logical model turns, 24 tools, 30k reported token budget, 240s active budget, two output repairs, two provider retries. These are maintainability/safety limits, not empirical model-optimal settings. Official APIs were read and installed versions inspected; `uv.lock` records the actual compatible dependency resolution.
+- Development run: 35/35 assertions per system. No prompt/config tuning was made from these outcomes. First test run: 65/65 per system. This establishes deterministic synthetic episode behavior, not reasoning quality.
+- Clarification testing found that human resumes consumed crash-attempt budgets. Each authorized new input cycle now resets job delivery attempts; graph execution budgets stay persistent.
+- Concurrent-refund invariant test found stale SQLAlchemy identity-map reuse under a row lock. `populate_existing=True` now refreshes the locked order. Failure retained in `evidence/concurrency-failure.json`. This was a unit-invariant-driven repair after first evaluation; the original reports are preserved.
+- Checkpoint publications now fence on current job ownership as well as business writes, so an obsolete worker cannot publish checkpoint progress after losing its lease.
+- Approval expiry is included in the canonical payload, and is revalidated against proposal and approval expiry at execution. Role decisions cannot supply alternate business parameters.
+- Full raw traces are gzipped JSONL to keep the repository small, with readable summaries and blank human-review sheets. Ordinary outputs remain ignored. Reports disclose historical/exposed retest status and unknown provider usage/cost.
+- Local Compose is the selected hosting path; remote deployment and the live model benchmark remain unverified because access is unavailable. No paid always-on worker is substituted for a free plan.

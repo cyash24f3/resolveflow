@@ -1,0 +1,111 @@
+{
+  "mode": "fixture",
+  "workload": "same approved sandbox refund delivered 24 times concurrently",
+  "concurrency": 8,
+  "requests": 24,
+  "failures": 0,
+  "unique_effects": 1,
+  "p50_seconds": 0.08659508300479501,
+  "p95_seconds": 0.1858259580039885,
+  "wall_seconds": 0.35669037501793355,
+  "conditions": "localhost PostgreSQL 17 in Docker; warm DB; in-process adapters; no model; measured lock contention includes transaction commit",
+  "production_capacity_claim": false,
+  "deliveries": [
+    {
+      "seconds": 0.1110599999956321,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.13630837498931214,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.12445637499331497,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.17684283398557454,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.1484033750020899,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.16303783300099894,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.19930654199561104,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.1858259580039885,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.1038420410186518,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.09585875002085231,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.09245241701137275,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.08659508300479501,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07874533301219344,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07679083399125375,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07272554200608283,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.06755733300815336,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.06619741598842666,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07073016700451262,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07301887500216253,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07618354199803434,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.0805759999784641,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07960133400047198,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.08003145901602693,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    },
+    {
+      "seconds": 0.07988312499946915,
+      "effect_id": "b795af56-5301-4dac-a5bf-20fdf1e9c818"
+    }
+  ]
+}

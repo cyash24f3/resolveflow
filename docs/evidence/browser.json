@@ -1,0 +1,26 @@
+{
+  "browser": "Chromium",
+  "base_url": "http://localhost:8090",
+  "journeys": [
+    "local operator authentication",
+    "submit fixture run",
+    "order clarification",
+    "damage evidence clarification",
+    "operator approval controls disabled",
+    "supervisor exact approval",
+    "committed replacement ledger",
+    "baseline cancellation proposal rejected without effect",
+    "developer evaluation access",
+    "mobile responsive layout"
+  ],
+  "page_errors": [],
+  "mobile_overflow": false,
+  "screenshots": [
+    "requests-awaiting-approval.png",
+    "requests-completed.png",
+    "sandbox-ledger.png",
+    "approval-rejected.png",
+    "mobile-requests.png"
+  ],
+  "actual_api_data": true
+}

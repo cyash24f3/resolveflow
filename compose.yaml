@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: resolveflow
+      POSTGRES_USER: resolveflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run bootstrap first}
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resolveflow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://resolveflow:${POSTGRES_PASSWORD}@db:5432/resolveflow
+    command: ["uv", "run", "--no-sync", "python", "-m", "resolveflow.cli", "init"]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://resolveflow:${POSTGRES_PASSWORD}@db:5432/resolveflow
+    command: ["uv", "run", "--no-sync", "uvicorn", "resolveflow.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:8090:8000"]
+    mem_limit: 512m
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/ready')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://resolveflow:${POSTGRES_PASSWORD}@db:5432/resolveflow
+      PROVIDER_BASE_URL: ${DOCKER_PROVIDER_BASE_URL:-http://host.docker.internal:11434/v1}
+    command: ["uv", "run", "--no-sync", "python", "-m", "resolveflow.jobs.worker"]
+    mem_limit: 768m
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+    stop_grace_period: 130s
+volumes:
+  pgdata:

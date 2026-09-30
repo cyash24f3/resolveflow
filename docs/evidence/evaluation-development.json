@@ -1,0 +1,147 @@
+{
+  "manifest": {
+    "git_revision": "uncommitted",
+    "dirty": true,
+    "dataset_hash": "dcf61582c0e4d4080878028e73660eb1de4bc724c70331eab8646e60013dee1d",
+    "lock_hash": "e474c4a9692f4f855d9800ef6d6d6ab7f9b14cd5e39c7075ee7054122f88394f",
+    "policy_seed_hash": "019c2298ec9ff02763a583cc97282f15a6a01da7524b24ecff59f16eeceea057",
+    "prompt_version": "resolveflow-v1",
+    "tool_contract": "v1",
+    "model": "qwen3:8b",
+    "settings": {
+      "max_model_calls": 12,
+      "max_tool_calls": 24,
+      "max_total_tokens": 30000,
+      "provider_enabled": false
+    },
+    "hardware": {
+      "machine": "arm64",
+      "os": "macOS-27.0-arm64-arm-64bit",
+      "user_reported": "MacBook Air M5, 24 GB memory, 1 TB SSD"
+    },
+    "price_config": null,
+    "date": "2026-09-30",
+    "review_provenance": "AI-authored synthetic scenarios, no human semantic review",
+    "split_exposure": "First execution; any later retest is recorded by a separate run directory."
+  },
+  "split": "development",
+  "systems": {
+    "baseline": {
+      "scheduled": 35,
+      "harness_errors": 0,
+      "task_completion": {
+        "numerator": 35,
+        "denominator": 35,
+        "rate": 1.0
+      },
+      "policy_violations": {
+        "numerator": 0,
+        "denominator": 35,
+        "rate": 0.0
+      },
+      "approval_compliance": {
+        "numerator": 12,
+        "denominator": 12,
+        "rate": 1.0
+      },
+      "duplicate_effect_rate": {
+        "numerator": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "recovery_success": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "latency_p50_seconds": 0.08488320701871999,
+      "latency_p95_seconds": 0.1543006670253817,
+      "latency_scope": "Active graph processing; waits and harness setup excluded; localhost, warm DB, concurrency 1.",
+      "categories": {
+        "damage_replacement": 2,
+        "damage_refund": 1,
+        "missing_order": 2,
+        "missing_damage": 3,
+        "reseller": 4,
+        "late_report": 2,
+        "cancellation": 2,
+        "shipped_cancellation": 1,
+        "delay": 3,
+        "early_delay": 1,
+        "existing_refund": 2,
+        "existing_replacement": 1,
+        "rejection": 1,
+        "expiry": 2,
+        "stale": 2,
+        "duplicate": 1,
+        "injection_scope": 1,
+        "injection_policy": 2,
+        "conflict_tracking": 1,
+        "read_timeout": 1
+      },
+      "failure_examples": [],
+      "semantic_review": "Human review pending; no semantic quality score claimed."
+    },
+    "fixture": {
+      "scheduled": 35,
+      "harness_errors": 0,
+      "task_completion": {
+        "numerator": 35,
+        "denominator": 35,
+        "rate": 1.0
+      },
+      "policy_violations": {
+        "numerator": 0,
+        "denominator": 35,
+        "rate": 0.0
+      },
+      "approval_compliance": {
+        "numerator": 12,
+        "denominator": 12,
+        "rate": 1.0
+      },
+      "duplicate_effect_rate": {
+        "numerator": 0,
+        "denominator": 1,
+        "rate": 0.0
+      },
+      "recovery_success": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "latency_p50_seconds": 0.12004325003363192,
+      "latency_p95_seconds": 0.31508675101213157,
+      "latency_scope": "Active graph processing; waits and harness setup excluded; localhost, warm DB, concurrency 1.",
+      "categories": {
+        "damage_replacement": 2,
+        "damage_refund": 1,
+        "missing_order": 2,
+        "missing_damage": 3,
+        "reseller": 4,
+        "late_report": 2,
+        "cancellation": 2,
+        "shipped_cancellation": 1,
+        "delay": 3,
+        "early_delay": 1,
+        "existing_refund": 2,
+        "existing_replacement": 1,
+        "rejection": 1,
+        "expiry": 2,
+        "stale": 2,
+        "duplicate": 1,
+        "injection_scope": 1,
+        "injection_policy": 2,
+        "conflict_tracking": 1,
+        "read_timeout": 1
+      },
+      "failure_examples": [],
+      "semantic_review": "Human review pending; no semantic quality score claimed."
+    }
+  },
+  "live_provider_status": "unverified",
+  "semantic_human_review": "pending",
+  "immediate_effect_inappropriate": 23,
+  "evaluated_families": 35,
+  "raw_results_path": "outputs/evaluation/20260930-152105"
+}
