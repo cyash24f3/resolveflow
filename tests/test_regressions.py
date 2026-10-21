@@ -325,3 +325,43 @@ def test_server_attaches_exact_evidence_when_model_omits_ids(db, make_run, work)
         }
         assert set(proposal.payload["evidence_ids"]).issubset(checks)
         assert proposal.payload["evidence_ids"]
+
+
+def test_cancellation_recovers_an_omitted_model_reason(db, make_run, work, supervisor):
+    from resolveflow.agent.providers import Fixture
+    from resolveflow.tools.contracts import definitions
+
+    class OmittedReason(Fixture):
+        omitted = False
+
+        def next(self, run, state):
+            decision = super().next(run, state)
+            if decision.get("name") == "check_resolution_eligibility" and not self.omitted:
+                decision["arguments"].pop("reason")
+                self.omitted = True
+            return decision
+
+    factory, _, _ = db
+    make_run(
+        message="Cancel order ORD-1003 before it ships.",
+        mode="provider",
+        facts={"order_id": "ORD-1003"},
+    )
+    run = work(provider=OmittedReason())
+    assert run.status == "awaiting_approval"
+    assert any(
+        "Cancellation actions require" in item.get("error", {}).get("message", "")
+        for item in run.state["history"]
+    )
+    with factory() as s:
+        assert s.get(Proposal, run.proposal_id).payload["reason"] == "cancellation"
+        assert not list(s.scalars(select(Effect).where(Effect.run_id == run.id)))
+    approve(factory, supervisor, run)
+    assert work().status == "completed"
+    with factory() as s:
+        assert len(list(s.scalars(select(Effect).where(Effect.run_id == run.id)))) == 1
+    for tool in definitions():
+        if tool["function"]["name"] in ("check_resolution_eligibility", "propose_resolution"):
+            schema = tool["function"]["parameters"]
+            assert "reason" in schema["required"]
+            assert "default" not in schema["properties"]["reason"]
