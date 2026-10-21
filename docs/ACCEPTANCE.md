@@ -1,34 +1,35 @@
-# Acceptance checklist
+# Release verification
 
-Verification date: 1 October 2026 (Asia/Kolkata). Evidence is from actual local execution, GitHub-hosted CI and Render/Neon HTTPS execution. No live-provider or human-review success is invented.
+Verification date: 21 October 2026. The hardening release is application version **0.2.0**, runtime commit `1bd0015610cf18403a715a3e9a327fecaa3d3bf3`.
 
-| Criterion | Status | Evidence |
-|---|---|---|
-| 1. Clean checkout starts and seeds fictional records | Verified | `clean-checkout.json`: local clone of commit 6709932, frozen install, fresh schema, migrations, seed and all 41 tests passed |
-| 2. Fixture and fixed workflow need no paid credentials and have distinct labels | Verified | `tests/test_workflows.py`, `evaluation-development.json`, `evaluation-test.json`, current `evaluation-ci.json` |
-| 3. Real model chooses tools in a verified investigation | Implemented, unverified | `agent/providers.py`, mocked `test_provider_adapter.py`; no free-tier key or installed local model was supplied |
-| 4. Missing facts pause and resume | Verified | `tests/test_api.py`, actual `browser.json`, `requests-awaiting-approval.png` |
-| 5. Exact proposal approval and rejection by permitted roles | Verified | `test_approval_queue.py`, `test_api.py`, browser supervisor journey |
-| 6. Unapproved/out-of-scope/expired/stale effects blocked | Verified | Approval, scope, stale-order, expiry tests; frozen scenario traces |
-| 7. Duplicate/concurrent delivery produces unique effects | Verified after repair | `concurrency-failure.json` retains the original failure; current concurrency regression and `load.json` |
-| 8. Actual restart recovers commit-before-checkpoint | Verified | `scripts/recovery_demo.py`, `recovery.json`: exit 77 followed by another process, one effect before/after |
-| 9. Interface exposes policy sources and actual committed state | Verified | Actual Chromium screenshots and `browser.json`; Jinja + DOM escaping + protected API data |
-| 10. Frozen comparison, denominators and failure evidence | Verified for fixture/baseline; live comparison unverified | 100 families, 35/65 split, `episodes-*.jsonl.gz`, reports, retained concurrency failure, blank semantic review CSVs |
-| 11. Containers persist business records and checkpoints | Verified | `containers.json`: Compose down/up preserved 7 runs, 6 proposals, 6 approvals, 5 effects and 93 checkpoints; non-root UID 10001 |
-| 12. Injection, timeout and unsafe calls have observed outcomes | Verified for deterministic guards and mocked provider failures | Tool/scope tests, `test_provider_adapter.py`, named read-timeout scenarios and episode exports |
-| 13. Public cloud host uses free compute and persistent managed DB | HTTPS workflow and real redeploy persistence verified | `cloud-deployment.json`: actual Render Free + Neon Free HTTPS, three-role login, scope/CSRF, clarification, exact approval and rejection; `hosted-container.json`: 0.1 CPU / 512 MiB local launcher restart |
+## Current checks
 
-Primary commands actually run: `uv sync --python 3.12`, migrations/seed + PostgresSaver setup, Ruff, mypy, pytest, development/test/CI evaluations, Chromium browser checks, actual separate-process restart, 24-delivery/eight-thread load, Docker build and Compose startup. Current `tests.txt` records the final suite count. `clean-checkout.json` independently records 41 passing tests from a fresh local clone. `docs/openapi.json` is exported from the running container API. Tests use real PostgreSQL; protocol/error tests use explicitly mocked model outputs.
+| Check | Observed result | Evidence |
+| --- | --- | --- |
+| Frozen install, lint, formatting, typing and JavaScript syntax | Passed in GitHub Actions | [Release CI](https://github.com/cyash24f3/resolveflow/actions/runs/39619487289) |
+| PostgreSQL regression tests | 84 passed | Release CI; approval/clarification races, cumulative refunds, evidence binding, identities, isolation and recovery regressions |
+| Deterministic v2 evaluation | 100/100 baseline episodes; zero observed policy violations | [evaluation-v2.json](evidence/evaluation-v2.json) |
+| Commit-before-checkpoint recovery | Separate process exited 77; recovery retained exactly one business effect | [recovery.json](evidence/recovery.json); release CI |
+| Migration on existing cloud data | Revision 003 applied on an isolated Neon child branch; original orders, effects, proposals, approvals and runs preserved | [Release verification report](evidence/release-20261021.json) |
+| Public cloud release | Render deployment `dep-dbccvj1srm7s738d3800` became live; HTTPS health/config/readiness returned successfully | [Release verification report](evidence/release-20261021.json) |
+| Public browser workflow | Real AI cancellation approved: one effect; baseline refund rejected: zero effects; visitor isolation, mobile overflow and browser console checks passed | [Release verification report](evidence/release-20261021.json) |
 
-The first 200 synthetic episodes predate the concurrency repair and subsequent domain/checkpoint hardening. They are preserved honestly as historical outputs. The current CI regression subset includes exposed families and is not a new holdout. No model prompt was tuned on held-out successes. No human semantic labels have been filled.
+The deterministic evaluation is an exposed regression check on AI-authored synthetic data. It measures the baseline and business guards, not live model accuracy. Human semantic review remains pending. The real-provider checks are bounded integration exercises and do not establish a statistical quality score.
 
-The project is published at [cyash24f3/resolveflow](https://github.com/cyash24f3/resolveflow) with public visibility. [GitHub-hosted verification](https://github.com/cyash24f3/resolveflow/actions/runs/36713976013) passed on historical commit `8ecf691`: frozen dependency installation, Ruff, mypy, JavaScript syntax, migrations/seed, all 41 tests, the deterministic CI evaluation and actual worker crash recovery. `github-ci.json` records the run, commit and step outcomes. The workflow runs on every push and pull request; the README badge reflects the latest result.
+## Scope of the guarantees
 
-Current [GitHub-hosted checks](https://github.com/cyash24f3/resolveflow/actions/runs/36759030316) passed on `6a8986e` with all 56 tests, including the hosted process and remote security configuration guards. The actual [public application](https://resolveflow-wojr.onrender.com) uses Render Free and Neon Free. Its live HTTPS baseline journey passed independently of the local container checks.
+The protected business effects are fictional PostgreSQL records. Approval, freshness checks, operation deduplication, order updates, the ledger and audit writes share the database transaction boundary. External payment or shipment systems would need their own idempotency and reconciliation.
 
-No production capacity, real attachment inspection, real financial effect, model quality score or paid service was verified. The complete credential-free sandbox is the core delivery. Follow `FREE_TIERS.md` to configure a bounded real-provider sample separately.
+Real model availability depends on the provider's free quotas. The preferred model and configured free fallbacks are distinct from the explicitly selected baseline/fixture modes. The app does not silently substitute a scripted result for an unavailable model. Free Render hosting can sleep when idle.
 
+## Historical evidence
 
-## October 2026 hardening release
+Earlier evidence remains in `docs/evidence/` rather than being relabeled as current:
 
-The original evidence below is historical. Current checks include the expanded regression suite, all 100 v2 baseline episodes, actual process crash recovery, a migration on a Neon child branch, and the public browser journey. See `evaluation-v2.json`, `live-integration-before-hardening.json` and the release verification artifacts for their distinct scopes. Live samples are exposed integration checks, with human semantic review still pending.
+- `clean-checkout.json`, `tests.txt`, `github-ci.json` and `github-cloud-ci.json` describe earlier 41/56-test releases.
+- `evaluation-development.json`, `evaluation-test.json` and `episodes-*.jsonl.gz` use the older v1 synthetic dataset. They are not the category-disjoint v2 evaluation.
+- `concurrency-failure.json` retains the original concurrency failure.
+- `live-integration-before-hardening.json` retains the first bounded real-provider failures.
+- `browser.json`, the older screenshots, `cloud-deployment.json`, `containers.json`, `hosted-container.json` and `load.json` describe earlier scripted deployments and local experiments.
+
+No production capacity, human semantic quality score, real image inspection, financial transfer or external shipment is claimed.

@@ -14,6 +14,13 @@ ResolveFlow combines model-selected tools with deterministic business rules and 
 4. For an eligible business action, inspect the exact proposal. Switch to **Demo supervisor**, select the request, and approve or reject it.
 5. Inspect **Sandbox records**. An approval creates a linked ledger entry only after the worker rechecks the policy, evidence, approval and current order revision. A rejection creates no effect.
 
+<details>
+<summary>See the verified live AI workflow</summary>
+
+![An AI cancellation completed after supervisor approval, with persisted observations and one sandbox ledger effect.](docs/evidence/live-workflow-20261021.png)
+
+</details>
+
 Public role switching is an interactive demonstration inside your own fictional workspace. Named operator, supervisor and developer accounts are separate from public demo access. Free hosting can sleep when idle; an initial load may take longer. Queued state survives instance restarts.
 
 ## What the model does
@@ -124,6 +131,8 @@ uv run python scripts/recovery_demo.py
 Tests create isolated PostgreSQL schemas and remove them afterwards. They do not reset your demo workspace. The database role must be allowed to create schemas. CI supplies disposable PostgreSQL and never calls a paid model.
 
 The regression suite covers approval/clarification checkpoint races, separate shipping-refund requests, misleading and negated intent, partial facts, mismatched evidence, missing records, logout revocation, named identities, public-workspace isolation, body limits, throttling, and stale-investigation recovery.
+
+See the [release verification](docs/ACCEPTANCE.md) for recorded results, the deployed runtime commit, and the scope of each check.
 
 For the larger deterministic evaluation:
 
