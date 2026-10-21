@@ -1,7 +1,8 @@
+from datetime import timedelta
 from typing import Any
 
 from resolveflow.domain.common import canonical
-from resolveflow.storage.models import Customer, Order, Policy
+from resolveflow.storage.models import Customer, Order, Policy, now
 
 POLICIES = [
     {
@@ -142,3 +143,32 @@ def seed_order_children(session, order):
             events=order.tracking.get("events", []),
         )
     )
+
+
+def seed_guest_workspace(session, workspace, token):
+    """Create fresh, namespaced business records, never copy mutable demo orders."""
+    customer_id = "C-" + token
+    session.add(Customer(id=customer_id, workspace=workspace, name="Your demo customer"))
+    session.flush()
+    current = now()
+    delivered = (current - timedelta(days=2)).isoformat()
+    for number in (1, 2, 3):
+        order = Order(
+            id=f"ORD-D{token}{number}",
+            workspace=workspace,
+            customer_id=customer_id,
+            product="Arc desk lamp",
+            quantity=1,
+            paid_minor=249900,
+            shipping_minor=9900,
+            currency="INR",
+            purchased_at=(current - timedelta(days=15)).isoformat(),
+            promised_at=(current - timedelta(days=12)).isoformat(),
+            delivered_at=delivered if number == 1 else None,
+            shipped=number != 3,
+            tracking={"delivered_at": delivered if number == 1 else None, "events": []},
+        )
+        session.add(order)
+        session.flush()
+        seed_order_children(session, order)
+    return customer_id

@@ -13,3 +13,5 @@ Policy is selected by **purchase date**, using half-open [effective_from, effect
 - CON-01: Tracking delivery conflicting with order delivery, future report times, unavailable policy coverage, or unresolved facts escalate or pause. Unknown categories escalate.
 - APR-01: Refund, replacement and cancellation require an exact, unexpired supervisor decision bound to immutable payload hash, workspace and revisions. Approval lasts at most 24 hours and cannot change these rules. Relevant order revisions are checked again at execution.
 - IDEM-01: Same operation and payload returns the committed record; changed payload conflicts. Two separate requests are not deduplicated as transport retries, and still contend on the order lock.
+
+Hardening clarification: DEL-01 caps the **cumulative** shipping refunds across all investigations for the order, not each request in isolation. Proposal evidence must match the order, action parameters, facts and revision. A new investigation cannot reuse an old approval. Expired pending proposals are retired; recovery requires a fresh proposal and exact supervisor decision.

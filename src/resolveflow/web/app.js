@@ -1,7 +1,7 @@
 'use strict';
 let session = null, view = 'requests', runs = [], selected = null, detail = null, records = null, report = null;
 let busy = false, stale = false;
-let publicSample = null;
+let publicSample = null, config = {};
 const $ = selector => document.querySelector(selector);
 const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pretty = value => e(JSON.stringify(value, null, 2));
@@ -17,10 +17,13 @@ async function api(path, options = {}) {
   if (!response.ok) { const error = new Error(data.error?.message || 'Service unavailable'); error.status = response.status; throw error; }
   return data;
 }
-async function login(role, password) {
-  try { session = await api(password ? '/auth/login' : '/auth/demo/'+role, {method:'POST', body:password ? JSON.stringify({role,password}) : undefined}); $('#login-dialog').close(); detail = null; selected = null; updateAccount(); await refresh(); render(); } catch(error) { toast(error.message); }
+async function login(role, password, username) {
+  try { session = await api(password ? '/auth/login' : '/auth/demo/'+role, {method:'POST', body:password ? JSON.stringify({role,password,...(username?{username}:{})}) : undefined}); $('#login-dialog').close(); detail = null; selected = null; updateAccount(); await refresh(); render(); } catch(error) { toast(error.message); }
 }
-function updateAccount() { $('#role-label').innerHTML = `${e(session?.role || 'Sign in')}<small>${session?.demo ? 'Isolated demo session' : 'Authenticated session'}</small>`; $('.avatar').textContent = session?.role?.slice(0,2).toUpperCase() || '?'; }
+async function guestLogin(role='operator') {
+  try { session=await api('/auth/guest',{method:'POST',body:JSON.stringify({role})}); $('#login-dialog').close(); selected=null; detail=null; report=null; updateAccount(); await refresh(); render(); } catch(error) { toast(error.message); }
+}
+function updateAccount() { $('#role-label').innerHTML = `${e(session?.role || 'Sign in')}<small>${session?.guest ? 'Your isolated demo workspace' : session?.demo ? 'Isolated local demo' : (session?.actor || 'Authenticated session')}</small>`; $('.avatar').textContent = session?.role?.slice(0,2).toUpperCase() || '?'; }
 async function refresh() {
   if (!session) return;
   try {
@@ -38,7 +41,7 @@ function stat(label, value, note) { return `<div class="stat"><span class="stat-
 function render() {
   $('.nav.active')?.classList.remove('active'); $(`[data-view="${view}"]`)?.classList.add('active');
   $('#breadcrumb').innerHTML = `Workspace <span>/</span> ${e({requests:'Requests',approvals:'Approvals',sandbox:'Sandbox records',evaluation:'Evaluation'}[view])}`;
-  if (!session) { $('#connection').textContent = publicSample ? 'Read-only public example' : 'Sign in to begin'; $('#content').innerHTML = title('SUPPORT, WITH CERTAINTY','Every resolution starts with evidence.','A reliable support operations agent. Inspect, clarify, review, resolve.') + (publicSample ? `<section class="panel"><div class="panel-head"><h3>Public example</h3>${pill(publicSample.mode)}</div><div class="panel-body"><div class="callout">Read-only walkthrough of fictional data. No investigation has been executed here.</div><div class="request-quote">${e(publicSample.example.request)}</div>${publicSample.example.steps.map((step,i)=>`<div class="observation"><div><small>STEP ${i+1}</small><h3>${e(words(step))}</h3></div></div>`).join('')}<button class="primary" data-signin>Sign in to run an investigation →</button></div></section>` : `<div class="panel">${empty('Your workspace is ready','Sign in to investigate fictional requests, or explore the public walkthrough.')}<div class="panel-body"><button class="primary" data-signin>Enter workspace →</button> <button class="secondary" data-sample>View public example →</button></div></div>`); return; }
+  if (!session) { $('#connection').textContent = publicSample ? 'Read-only public example' : 'Sign in to begin'; $('#content').innerHTML = title('SUPPORT, WITH CERTAINTY','Every resolution starts with evidence.','Investigate fictional orders, review an exact proposal, and inspect the resulting ledger.') + (publicSample ? `<section class="panel"><div class="panel-head"><h3>Public example</h3>${pill(publicSample.mode)}</div><div class="panel-body"><div class="callout">Read-only walkthrough of fictional data. No investigation has been executed here.</div><div class="request-quote">${e(publicSample.example.request)}</div>${publicSample.example.steps.map((step,i)=>`<div class="observation"><div><small>STEP ${i+1}</small><h3>${e(words(step))}</h3></div></div>`).join('')}<button class="primary" data-signin>Sign in to run an investigation →</button></div></section>` : `<div class="panel">${empty('Your workspace is ready','Sign in to investigate fictional requests, or explore the public walkthrough.')}<div class="panel-body">${document.body.dataset.publicDemo==='true'?'<button class="primary" data-guest="operator">Try the live workflow →</button>':'<button class="primary" data-signin>Enter workspace →</button>'}</div></div>`); return; }
   const warning = stale ? `<div class="callout">Connection interrupted. Showing the last observed state; actions will be revalidated by the server.</div>` : '';
   $('#content').innerHTML = warning + ({requests:renderRequests,approvals:renderApprovals,sandbox:renderSandbox,evaluation:renderEvaluation}[view])();
 }
@@ -47,10 +50,10 @@ function renderRequests() {
   return title('SUPPORT OPERATIONS','From request to resolution.','Investigate with evidence. Make every action reviewable.') +
     `<div class="stats">${stat('Requests in workspace',runs.length,'Actual persisted requests')}${stat('Awaiting a decision',waiting,'Information or supervisor approval')}${stat('Completed',runs.filter(r=>r.status==='completed').length,'Includes correct policy rejections')}${stat('Simulated effects',records?.effects.length || 0,'Committed sandbox ledger entries')}</div>
     <div class="split"><div><section class="panel"><div class="panel-head"><h3>New investigation</h3><span class="label-meta">01 / INTAKE</span></div><form id="new-request" class="panel-body">
-    <div class="form-row"><label>Assigned customer<select name="customer_id">${(records?.customers||[]).map(c=>`<option value="${e(c.id)}">${e(c.name)}</option>`).join('')}</select></label><label>Execution mode<select name="mode"><option value="fixture">Fixture · scripted demo</option><option value="baseline">Baseline · fixed workflow</option><option value="provider" ${session.provider_enabled ? '' : 'disabled'}>Provider · real model</option></select></label></div>
-    <label>Customer request<textarea name="message" required maxlength="4000" placeholder="My order ORD-1001 arrived damaged. Can I get a replacement?"></textarea></label>
+    <div class="form-row"><label>Assigned customer<select name="customer_id">${(records?.customers||[]).map(c=>`<option value="${e(c.id)}">${e(c.name)}</option>`).join('')}</select></label><label>Execution mode<select name="mode"><option value="provider" ${session.provider_enabled ? 'selected' : 'disabled'}>AI investigation${config.model?' · '+e(config.model):''}</option><option value="baseline" ${session.provider_enabled?'':'selected'}>Deterministic baseline</option>${session.guest?'':'<option value="fixture">Scripted fixture · testing</option>'}</select></label></div>
+    <div class="example-actions"><span class="muted">Try a request:</span> <button type="button" class="secondary" data-example="damage">Damaged item</button> <button type="button" class="secondary" data-example="delay">Delayed order</button> <button type="button" class="secondary" data-example="cancellation">Cancellation</button> <button type="button" class="secondary" data-example="status">Order status</button></div><label>Customer request<textarea name="message" required maxlength="4000" placeholder="My order ORD-1001 arrived damaged. Can I get a replacement?"></textarea></label>
     <details><summary>Add operator-recorded damage evidence</summary><div id="damage-fields"><label>Reported damage description<input name="damage_description" placeholder="Cracked lamp shade" maxlength="1000"></label><label>Report timestamp (ISO 8601)<input name="damage_reported_at" placeholder="2026-09-10T10:00:00+00:00"></label><label class="inline-check"><input name="photo_reviewed" type="checkbox">I reviewed a photo in the fictional sandbox</label></div></details>
-    <div class="hint">The fixture replays scripted decisions. It demonstrates the workflow and makes no claim about model quality.</div><div class="form-footer"><span class="muted">All business effects are simulated</span><button class="primary" type="submit">Investigate <span>↗</span></button></div></form></section>
+    <div class="hint">${session.provider_enabled?'AI mode uses the configured model to select investigative tools. Business rules and exact approval control every action.':'Model inference is currently unavailable. The deterministic baseline remains usable.'}</div><div class="form-footer"><span class="muted">All business effects are simulated</span><button class="primary" type="submit">Investigate <span>↗</span></button></div></form></section>
     <section class="panel"><div class="panel-head"><h3>Recent requests</h3><small>${runs.length} in this workspace</small></div><div class="request-list">${runs.length ? runs.map(r=>`<button class="request-row ${selected===r.id?'selected':''}" data-run="${e(r.id)}"><div><small class="code">RF-${e(r.id.slice(0,8))}</small>${pill(r.mode)}</div><p>${e(r.request)}</p><div>${status(r.status)}<small>${e(stamp(r.created_at))}</small></div></button>`).join('') : empty('No requests yet','Submit a request above. Each investigation will appear here.','▤')}</div></section></div>
     <section class="panel"><div class="panel-head"><h3>Investigation detail</h3>${detail ? `<button class="icon-button" data-refresh>Refresh ↻</button>` : '<span class="label-meta">02 / EVIDENCE & ACTION</span>'}</div>${detail ? renderDetail() : empty('Follow the evidence','Select a request to inspect observations, policy rules, and the exact proposed action.','◈')}</section></div>`;
 }
@@ -69,14 +72,14 @@ function renderDetail() {
   const r = detail;
   return `<div class="panel-body"><span class="label-meta code">RF-${e(r.id.slice(0,8))}</span><h2 class="detail-title">Investigation, with a record.</h2><div class="detail-meta">${status(r.status)}${pill(r.mode)}</div><div class="request-quote">${e(r.request)}</div>
     ${r.final?.explanation ? `<div class="result ${['awaiting_approval','awaiting_information'].includes(r.status)?'warning':['failed','rejected'].includes(r.status)?'error':''}"><strong>${e(words(r.final.outcome))}</strong><p>${e(r.final.explanation)}</p><span class="muted">${r.committed_effects.length} protected effect(s) committed · ${e(r.mode)} mode</span></div>` : `<div class="callout">${e(words(r.status))}. Progress will appear as the worker records real observations.</div>`}
-    ${r.status==='awaiting_information' ? clarificationForm(r) : ''}
+    ${r.status==='awaiting_information' ? clarificationForm(r) : ''}${r.status==='awaiting_approval' && session.guest && session.role==='operator'?'<div class="callout">Ready for review. <button class="primary" data-guest="supervisor">Switch to demo supervisor →</button></div>':''}
     <div class="section-label">Observed facts & policy</div>${r.observations?.length ? r.observations.map(o=>`<div class="observation"><div><h3>${e(toolTitles[o.tool]||o.tool)}</h3><small>${e(o.observation_id)}</small><p>${e(observationSummary(o))}</p><details><summary>Inspect source observation</summary><pre>${pretty(o)}</pre></details></div></div>`).join('') : '<p class="muted">No tool observations yet. A separate worker processes queued runs.</p>'}
     ${r.proposal ? `<div class="section-label">Proposed effect</div>${proposalCard(r.proposal)}` : ''}
     ${r.committed_effects.length ? `<div class="section-label">Committed sandbox state</div>${r.committed_effects.map(effect=>`<div class="result"><strong>Simulated ${e(effect.action)} committed</strong><p>${effect.action==='refund'?money(effect.amount_minor,effect.currency):effect.action==='replacement'?`${effect.quantity} replacement item(s)`:'Order cancelled'} · ${e(effect.order_id)}</p><small class="code">Effect ${e(effect.id)}</small></div>`).join('')}` : ''}
-    <div class="section-label">Execution</div><p class="muted">${r.timing.tool_calls} tool calls · ${r.timing.model_calls} model calls · ${r.timing.active_seconds?.toFixed(2) || '—'}s active · tokens ${r.timing.tokens ?? 'unknown / not applicable'}</p>
-    ${!['completed','failed','rejected','escalated','cancelled'].includes(r.status)?`<button class="secondary danger" data-cancel="${e(r.id)}">Cancel investigation</button>`:''}${session.role==='developer'?` <button class="secondary" data-trace="${e(r.id)}">Inspect protected trace</button><div id="trace-output"></div>`:''}</div>`;
+    <div class="section-label">Execution</div><p class="muted">${r.timing.model?e(r.timing.model)+' · ':''}${r.timing.tool_calls} tool calls · ${r.timing.model_calls} model calls · ${r.timing.active_seconds?.toFixed(2) || '—'}s active · tokens ${r.timing.tokens ?? 'unknown / not applicable'}</p>
+    ${!['completed','failed','rejected','escalated','cancelled'].includes(r.status)?`<button class="secondary danger" data-cancel="${e(r.id)}">Cancel investigation</button>`:''}${['failed','escalated','cancelled'].includes(r.status) && !r.committed_effects.length?`<button class="primary" data-reinvestigate="${e(r.id)}">Start a fresh investigation →</button>`:''}${session.role==='developer'?` <button class="secondary" data-trace="${e(r.id)}">Inspect protected trace</button><div id="trace-output"></div>`:''}</div>`;
 }
-function clarificationForm(r) { return `<form id="clarification" class="proposal"><h3>Supply the requested facts</h3><p class="muted">Operator input is recorded as reported evidence, with photo review attested separately.</p>${r.clarification.fields.map(f=>f==='photo_reviewed'?'<label class="inline-check"><input type="checkbox" name="photo_reviewed">Sandbox photo reviewed by operator</label>':`<label>${e(words(f))}<input name="${e(f)}" required maxlength="1000" placeholder="${f==='damage_reported_at'?'2026-09-10T10:00:00+00:00':f==='order_id'?'ORD-1001':''}"></label>`).join('')}<button class="primary">Save facts & resume →</button></form>`; }
+function clarificationForm(r) { return `<form id="clarification" class="proposal"><h3>Supply the requested facts</h3><p class="muted">Operator input is recorded as reported evidence, with photo review attested separately.</p>${r.clarification.fields.map(f=>f==='action'?'<label>Requested resolution<select name="action" required><option value="refund">Refund</option><option value="replacement">Replacement</option><option value="cancellation">Cancellation</option><option value="escalation">Escalate for review</option></select></label>':f==='photo_reviewed'?'<label class="inline-check"><input type="checkbox" name="photo_reviewed">Sandbox photo reviewed by operator</label>':`<label>${e(words(f))}<input name="${e(f)}" required maxlength="1000" placeholder="${f==='damage_reported_at'?'2026-09-10T10:00:00+00:00':f==='order_id'?'ORD-1001':''}"></label>`).join('')}<button class="primary">Save facts & resume →</button></form>`; }
 function proposalCard(p) {
   const d = p.payload, exact = d.action==='refund'?money(d.amount_minor,d.currency):d.action==='replacement'?`${d.quantity} item${d.quantity===1?'':'s'} replacement`:words(d.action);
   return `<div class="proposal"><div class="proposal-top"><span class="eyebrow">SIMULATED ${e(d.action.toUpperCase())}</span><span class="pill">${e(p.status)}</span></div><div class="proposal-effect">${e(exact)}</div><div class="proposal-grid"><div><small>Order / customer</small>${e(d.order_id)} / ${e(d.customer_id)}</div><div><small>Business record revision</small>${d.order_revision}</div><div><small>Policy / rules</small>${e(d.policy_id)} · ${e(d.rule_ids.join(', '))}</div><div><small>Approval expiry</small>${e(stamp(p.expires_at))}</div></div><details class="muted"><summary>Inspect immutable payload & hash</summary><pre>${pretty(p)}</pre></details>${p.status==='pending' ? `<div class="proposal-actions"><button class="primary" data-decision="approve" data-proposal="${e(p.id)}" ${['supervisor','developer'].includes(session.role)?'':'disabled'}>Approve exact effect ✓</button><button class="secondary danger" data-decision="reject" data-proposal="${e(p.id)}" ${['supervisor','developer'].includes(session.role)?'':'disabled'}>Reject</button></div><p class="muted">${session.role==='operator'?'Switch to a supervisor session to decide.':'Approval binds to this payload, hash and revision. Changed facts require a new proposal.'}</p>`:''}</div>`;
@@ -99,6 +102,23 @@ function renderEvaluation() {
 document.addEventListener('click', async event => {
   if(event.target.closest('[data-sample]')) { try { publicSample=await api('/sample'); $('#login-dialog').close(); render(); } catch(err) { toast(err.message); } return; }
   const button = event.target.closest('button'); if(!button) return;
+  if(button.dataset.guest) return guestLogin(button.dataset.guest);
+  if(button.hasAttribute('data-close-dialog')) return $('#login-dialog').close();
+  if(button.hasAttribute('data-logout')) {
+    try { if(session) await api('/auth/logout',{method:'POST'}); session=null; detail=null; selected=null; records=null; runs=[]; report=null; updateAccount(); $('#login-dialog').close(); render(); } catch(err) {toast(err.message);} return;
+  }
+  if(button.dataset.example) {
+    const kind=button.dataset.example;
+    const order=(records?.orders||[]).find(o=>kind==='damage'?o.delivered_at && !o.replaced_qty:kind==='cancellation'?!o.shipped && !o.cancelled:kind==='delay'?!o.delivered_at && o.shipped:true);
+    if(!order) return toast('No matching order in this workspace. Inspect your sandbox records.');
+    const messages={damage:`My order ${order.id} arrived damaged. Please replace it.`,delay:`My order ${order.id} is delayed. Please refund the shipping fee.`,cancellation:`Please cancel my order ${order.id}.`,status:`What is the latest tracking update for order ${order.id}?`};
+    const form=$('#new-request'); form.elements.message.value=messages[kind];
+    if(kind==='damage') { form.querySelector('details').open=true; form.elements.damage_description.value='Cracked lamp shade (fictional customer report)'; form.elements.damage_reported_at.value=new Date(new Date(order.delivered_at).getTime()+86400000).toISOString(); form.elements.photo_reviewed.checked=true; }
+    form.elements.message.focus(); return;
+  }
+  if(button.dataset.reinvestigate) {
+    try { const run=await api('/runs/'+button.dataset.reinvestigate+'/reinvestigate',{method:'POST',body:JSON.stringify({idempotency_key:crypto.randomUUID()})}); selected=run.id; await refresh(); render(); toast('Fresh investigation queued. A new proposal will require a new approval.'); } catch(err) {toast(err.message);} return;
+  }
   if(button.dataset.login) return login(button.dataset.login);
   if(button.id==='account' || button.hasAttribute('data-signin')) return $('#login-dialog').showModal();
   if(button.dataset.view) { view=button.dataset.view; render(); return; }
@@ -115,7 +135,7 @@ document.addEventListener('click', async event => {
 });
 document.addEventListener('submit', async event => {
   event.preventDefault(); const form=event.target, data=new FormData(form);
-  if(form.id==='credentials') return login(data.get('role'),data.get('password'));
+  if(form.id==='credentials') return login(data.get('role'),data.get('password'),data.get('username'));
   const submit=form.querySelector('button[type="submit"], button.primary'); if(submit) submit.disabled=true;
   try {
     if(form.id==='new-request') {
@@ -130,6 +150,6 @@ document.addEventListener('submit', async event => {
     }
   } catch(err) {toast(err.message); if(submit) submit.disabled=false;}
 });
-async function boot() {try {session=await api('/auth/me'); updateAccount(); await refresh();} catch {if(document.body.dataset.demoMode==='true') setTimeout(()=>$('#login-dialog').showModal(),100);} render();}
+async function boot() {try {config=await api('/config');} catch {} try {session=await api('/auth/me'); updateAccount(); await refresh();} catch {if(document.body.dataset.demoMode==='true') setTimeout(()=>$('#login-dialog').showModal(),100);} render();}
 boot();
 setInterval(async()=>{ if(!session || busy || document.hidden) return; busy=true; const prior=JSON.stringify([runs.map(r=>[r.id,r.status]),detail?.observations?.length]); await refresh(); const next=JSON.stringify([runs.map(r=>[r.id,r.status]),detail?.observations?.length]); if(prior!==next && !document.activeElement?.closest('form')) render(); busy=false; },2000);

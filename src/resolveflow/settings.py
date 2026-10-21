@@ -14,15 +14,22 @@ class Settings(BaseSettings):
     developer_password: SecretStr = SecretStr("")
     demo_mode: bool = False
     public_read_only: bool = False
+    public_demo_enabled: bool = False
     cookie_secure: bool = True
     remote_deployment: bool = False
     provider_enabled: bool = False
     provider_base_url: str = "http://localhost:11434/v1"
     provider_model: str = "qwen3:8b"
+    provider_fallback_models: list[str] = Field(default_factory=list, max_length=3)
     provider_api_key: SecretStr = SecretStr("")
     provider_timeout_seconds: float = Field(45, ge=1, le=120)
     provider_max_retries: int = Field(2, ge=0, le=3)
     provider_temperature: float = Field(0, ge=0, le=1)
+    provider_reasoning_effort: str | None = None
+    provider_max_output_tokens: int = Field(2048, ge=256, le=8192)
+    provider_min_interval_seconds: float = Field(0, ge=0, le=60)
+    worker_concurrency: int = Field(2, ge=1, le=4)
+    max_pending_runs: int = Field(20, ge=1, le=100)
     max_model_calls: int = Field(12, ge=1, le=30)
     max_tool_calls: int = Field(24, ge=1, le=60)
     max_total_tokens: int = Field(30000, ge=1000, le=100000)

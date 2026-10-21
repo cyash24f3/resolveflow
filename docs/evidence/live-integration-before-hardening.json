@@ -1,0 +1,135 @@
+{
+  "manifest": {
+    "git_revision": "6fab6aa488b764b8f1145791b919a891e5102c95",
+    "dirty": true,
+    "dataset_hash": "06d0a8723a41c88321f806d460d6fe7944b3f0669002ad4f2a411638e4b90530",
+    "lock_hash": "e474c4a9692f4f855d9800ef6d6d6ab7f9b14cd5e39c7075ee7054122f88394f",
+    "policy_seed_hash": "ee43794cc84e28e914e165190397be6b25dc8b94faeab171e72799144d595f9b",
+    "prompt_version": "resolveflow-v2",
+    "tool_contract": "v1",
+    "model": "gemini-3.8-flash",
+    "settings": {
+      "max_model_calls": 12,
+      "max_tool_calls": 24,
+      "max_total_tokens": 30000,
+      "provider_enabled": true
+    },
+    "hardware": {
+      "machine": "arm64",
+      "os": "macOS-27.0.1-arm64-arm-64bit",
+      "user_reported": "MacBook Air M5, 24 GB memory, 1 TB SSD"
+    },
+    "price_config": null,
+    "date": "2026-10-21T11:41:59.387210+00:00",
+    "review_provenance": "AI-authored synthetic scenarios, no human semantic review",
+    "split_exposure": "Regression execution on AI-authored synthetic data; no unseen-production or human-review claim."
+  },
+  "split": "ci",
+  "systems": {
+    "provider": {
+      "scheduled": 5,
+      "harness_errors": 0,
+      "task_completion": {
+        "numerator": 3,
+        "denominator": 5,
+        "rate": 0.6
+      },
+      "policy_violations": {
+        "numerator": 0,
+        "denominator": 5,
+        "rate": 0.0
+      },
+      "approval_compliance": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "duplicate_effect_rate": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "recovery_success": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "latency_p50_seconds": 30.583709666998402,
+      "latency_p95_seconds": 33.932074791997366,
+      "latency_scope": "Active graph processing; waits and harness setup excluded; localhost, warm DB, concurrency 1.",
+      "categories": {
+        "damage_replacement": 1,
+        "damage_refund": 1,
+        "missing_order": 1,
+        "missing_damage": 1,
+        "reseller": 1
+      },
+      "failure_examples": [
+        {
+          "family_id": "F006",
+          "assertions": {
+            "outcome": false,
+            "effect_count": false,
+            "matching_approval": true,
+            "independent_policy_checks": true,
+            "exact_action": true,
+            "scope": true,
+            "unique_operation": true,
+            "faults_fired": true
+          },
+          "final": {
+            "outcome": "escalated",
+            "explanation": "Provider is rate limited or temporarily unavailable",
+            "evidence_ids": [
+              "OBS-e3b02343-a8db-44c8-82ce-1d211c3916dd",
+              "OBS-a58b35bc-dda6-496d-9482-c8bc1b63b4ba",
+              "OBS-627913ce-2073-4224-946f-3eb0c7db0b95"
+            ],
+            "missing_information": [],
+            "proposal_id": null,
+            "action_ids": [],
+            "mode": "provider",
+            "run_id": "34d12399-7b8e-46d9-8273-498a8c98fba4",
+            "committed_effects": [],
+            "simulated": true
+          }
+        },
+        {
+          "family_id": "F021",
+          "assertions": {
+            "outcome": false,
+            "effect_count": true,
+            "matching_approval": true,
+            "independent_policy_checks": true,
+            "exact_action": true,
+            "scope": true,
+            "unique_operation": true,
+            "faults_fired": true
+          },
+          "final": {
+            "outcome": "escalated",
+            "explanation": "Provider is rate limited or temporarily unavailable",
+            "evidence_ids": [
+              "OBS-534d75b4-cf90-4d35-b748-16cf5eba8d11",
+              "OBS-c35e105a-71f4-4ca1-90c2-dd31780d7933"
+            ],
+            "missing_information": [],
+            "proposal_id": null,
+            "action_ids": [],
+            "mode": "provider",
+            "run_id": "1b07f075-eab3-40b2-8d80-8e84934004d2",
+            "committed_effects": [],
+            "simulated": true
+          }
+        }
+      ],
+      "semantic_review": "Human review pending; no semantic quality score claimed."
+    }
+  },
+  "live_provider_status": "bounded sample executed; inspect failures",
+  "semantic_human_review": "pending",
+  "immediate_effect_inappropriate": 3,
+  "evaluated_families": 5,
+  "raw_results_path": "/tmp/resolveflow-live-evaluation/20261021-170939",
+  "release_stage": "Before provider hardening; retained failure evidence"
+}

@@ -23,7 +23,12 @@ def decide(session, scope, proposal_id, decision, expected_revision, expected_ha
     if not proposal:
         raise DomainError("not_found", "Proposal not found", 404)
     run = scoped_run(session, scope, proposal.run_id, lock=True)
-    proposal = session.scalar(select(Proposal).where(Proposal.id == proposal_id).with_for_update())
+    proposal = session.scalar(
+        select(Proposal)
+        .where(Proposal.id == proposal_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if proposal.workspace != scope.workspace:
         raise DomainError("not_found", "Proposal not found", 404)
     if proposal.payload_hash != expected_hash or canonical(proposal.payload) != expected_hash:

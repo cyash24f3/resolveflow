@@ -12,6 +12,9 @@ from resolveflow.settings import get_settings
 def client(db, monkeypatch):
     factory, _, _ = db
     monkeypatch.setattr(module, "sessions", lambda: factory)
+    from resolveflow.api import auth as auth_module
+
+    monkeypatch.setattr(auth_module, "sessions", lambda: factory)
     monkeypatch.setattr(get_settings(), "demo_mode", True)
     monkeypatch.setattr(get_settings(), "cookie_secure", False)
     with TestClient(module.app) as client:
@@ -60,7 +63,7 @@ def test_api_clarification_approval_integration(client, work):
         "/api/v1/runs",
         json={
             "customer_id": "C-100",
-            "message": "My order arrived damaged.",
+            "message": "My order arrived damaged. Please replace it.",
             "idempotency_key": uuid4().hex,
         },
         headers=headers,
@@ -137,12 +140,25 @@ def test_hosted_login_and_public_example(client, monkeypatch):
     assert "HOSTED SANDBOX" in html
     assert 'data-login="supervisor"' not in html
     assert 'data-demo-mode="false"' in html
-    assert "data-sample" in html
+    assert "data-close-dialog" in html
     for role in ("operator", "supervisor", "developer"):
         assert client.post("/api/v1/auth/demo/" + role).status_code == 403
     assert client.get("/api/v1/sample").json()["read_only"]
     assert client.get("/api/v1/runs").status_code == 401
     monkeypatch.setattr(cfg, "operator_password", SecretStr("test-only-operator-password"))
+    from resolveflow.api.security import password_hash
+    from resolveflow.storage.models import Account
+
+    with module.sessions().begin() as s:
+        s.add(
+            Account(
+                username="operator",
+                password_hash=password_hash("test-only-operator-password"),
+                role="operator",
+                workspace="demo",
+                customers=["C-100"],
+            )
+        )
     login = client.post(
         "/api/v1/auth/login",
         json={"role": "operator", "password": "test-only-operator-password"},

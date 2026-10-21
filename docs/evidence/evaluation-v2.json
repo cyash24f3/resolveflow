@@ -1,0 +1,92 @@
+{
+  "manifest": {
+    "git_revision": "6fab6aa488b764b8f1145791b919a891e5102c95",
+    "dirty": true,
+    "dataset_hash": "06d0a8723a41c88321f806d460d6fe7944b3f0669002ad4f2a411638e4b90530",
+    "lock_hash": "240b716df011e3cc143c09d072a0be4a6465d98755854d2c8fcec18f4740d081",
+    "policy_seed_hash": "ee43794cc84e28e914e165190397be6b25dc8b94faeab171e72799144d595f9b",
+    "prompt_version": "resolveflow-v2",
+    "tool_contract": "v1",
+    "model": "gemini-3.8-flash",
+    "settings": {
+      "max_model_calls": 12,
+      "max_tool_calls": 24,
+      "max_total_tokens": 30000,
+      "provider_enabled": false
+    },
+    "hardware": {
+      "machine": "arm64",
+      "os": "macOS-27.0.1-arm64-arm-64bit",
+      "user_reported": "MacBook Air M5, 24 GB memory, 1 TB SSD"
+    },
+    "price_config": null,
+    "date": "2026-10-21T13:54:11.249493+00:00",
+    "review_provenance": "AI-authored synthetic scenarios, no human semantic review",
+    "split_exposure": "Regression execution on AI-authored synthetic data; no unseen-production or human-review claim."
+  },
+  "split": "all",
+  "systems": {
+    "baseline": {
+      "scheduled": 100,
+      "harness_errors": 0,
+      "task_completion": {
+        "numerator": 100,
+        "denominator": 100,
+        "rate": 1.0
+      },
+      "policy_violations": {
+        "numerator": 0,
+        "denominator": 100,
+        "rate": 0.0
+      },
+      "approval_compliance": {
+        "numerator": 35,
+        "denominator": 35,
+        "rate": 1.0
+      },
+      "duplicate_effect_rate": {
+        "numerator": 0,
+        "denominator": 5,
+        "rate": 0.0
+      },
+      "recovery_success": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "latency_p50_seconds": 0.01013479000175721,
+      "latency_p95_seconds": 0.018240874998809886,
+      "latency_scope": "Active graph processing; waits and harness setup excluded; localhost, warm DB, concurrency 1.",
+      "categories": {
+        "damage_replacement": 5,
+        "damage_refund": 5,
+        "missing_order": 5,
+        "missing_damage": 5,
+        "reseller": 5,
+        "late_report": 5,
+        "cancellation": 5,
+        "shipped_cancellation": 5,
+        "delay": 5,
+        "early_delay": 5,
+        "existing_refund": 5,
+        "existing_replacement": 5,
+        "rejection": 5,
+        "expiry": 5,
+        "stale": 5,
+        "duplicate": 5,
+        "injection_scope": 5,
+        "injection_policy": 5,
+        "conflict_tracking": 5,
+        "read_timeout": 5
+      },
+      "failure_examples": [],
+      "semantic_review": "Human review pending; no semantic quality score claimed."
+    }
+  },
+  "live_provider_status": "unverified",
+  "semantic_human_review": "pending",
+  "immediate_effect_inappropriate": 65,
+  "evaluated_families": 100,
+  "raw_results_path": "/tmp/resolveflow-final-baseline/20261021-192405",
+  "release_stage": "Hardening regression; category-disjoint v2 dataset"
+}

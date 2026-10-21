@@ -25,7 +25,9 @@ class AgentState(TypedDict, total=False):
     history: list[dict]
     tool_calls: int
     model_calls: int
+    provider_model: str
     repairs: int
+    transient_repairs: int
     active_seconds: float
     total_tokens: int
     token_usage_known: bool
@@ -127,8 +129,11 @@ class Workflow:
                 state["model_calls"] = state.get("model_calls", 0) + 1
                 self.save(state)  # Reserve budget before an unknown provider outcome.
             decision = self.adapter.next(run, state)
+            if decision.get("name") == "finish_investigation":
+                decision = {"final": decision["arguments"], "metadata": decision.get("metadata")}
             state["decision"] = decision
             if metadata := decision.get("metadata"):
+                state["provider_model"] = metadata.get("model", get_settings().provider_model)
                 usage = metadata.get("usage")
                 state["token_usage_known"] = (
                     state.get("token_usage_known", True) and usage is not None
@@ -159,7 +164,7 @@ class Workflow:
                         "invalid_model_output",
                         "Only the server constructs action and proposal references",
                     )
-                if final.outcome not in ("policy_ineligible", "escalated"):
+                if final.outcome not in ("information_provided", "policy_ineligible", "escalated"):
                     raise DomainError(
                         "invalid_model_output",
                         "Final outcome is inconsistent with persisted business state",
@@ -172,6 +177,33 @@ class Workflow:
                     raise DomainError(
                         "invalid_model_output", "Policy rejection lacks a deterministic check"
                     )
+                if final.outcome == "information_provided":
+                    orders = [o for o in state.get("observations", []) if o["tool"] == "get_order"]
+                    if not orders:
+                        raise DomainError(
+                            "invalid_model_output", "Order status requires an observed order"
+                        )
+                    order = orders[-1]["data"]
+                    status = (
+                        "cancelled"
+                        if order["cancelled"]
+                        else "delivered"
+                        if order["delivered_at"]
+                        else "in transit"
+                        if order["shipped"]
+                        else "awaiting shipment"
+                    )
+                    final.explanation = f"Order {order['id']} is {status}. No refund, replacement or cancellation was performed."
+                    final.evidence_ids = [orders[-1]["observation_id"]]
+                elif final.outcome == "policy_ineligible":
+                    checks = [
+                        o
+                        for o in state.get("observations", [])
+                        if o["tool"] == "check_resolution_eligibility"
+                        and o["data"]["status"] == "ineligible"
+                    ]
+                    final.explanation = "; ".join(checks[-1]["data"]["reasons"])
+                    final.evidence_ids = [checks[-1]["observation_id"]]
                 state.update(route="finish", final=final.model_dump())
             else:
                 from resolveflow.domain.common import canonical
@@ -198,6 +230,18 @@ class Workflow:
                     "propose_resolution": "approval",
                 }.get(decision["name"], "step")
                 if (
+                    decision["name"] == "check_resolution_eligibility"
+                    and result["data"]["status"] == "ineligible"
+                ):
+                    state.update(
+                        route="finish",
+                        final={
+                            "outcome": "policy_ineligible",
+                            "explanation": "; ".join(result["data"]["reasons"]),
+                            "evidence_ids": [result["observation_id"]],
+                        },
+                    )
+                if (
                     decision["name"] == "propose_resolution"
                     and result["data"]["payload"]["action"] == "escalation"
                 ):
@@ -217,6 +261,8 @@ class Workflow:
             )
             if code in ("lost_lease", "cancelled"):
                 raise
+            if run.mode == "provider":
+                state["token_usage_known"] = False
             with self.factory.begin() as s:
                 fence(s, self.run_id, self.owner)
                 event(
@@ -225,7 +271,8 @@ class Workflow:
                     "tool_error" if state.get("decision", {}).get("name") else "model_error",
                     {"code": code, "message": message},
                 )
-            state["repairs"] = state.get("repairs", 0) + 1
+            repair_key = "transient_repairs" if code == "transient_failure" else "repairs"
+            state[repair_key] = state.get(repair_key, 0) + 1
             state["history"] = [
                 *state.get("history", []),
                 {"error": {"code": code, "message": message}},
@@ -233,7 +280,7 @@ class Workflow:
             if (
                 (run.mode == "provider" and code in ("invalid_arguments", "invalid_model_output"))
                 or code == "transient_failure"
-            ) and state["repairs"] <= 2:
+            ) and state[repair_key] <= 2:
                 state["route"] = "step"
             else:
                 state.update(
@@ -257,7 +304,10 @@ class Workflow:
             if run.clarification:
                 run.status = "awaiting_information"
                 run.final = final_for(s, run, "needs_information", run.clarification["question"])
-        interrupt({"kind": "information"})
+        # Human input may commit before this node's interrupt checkpoint. On a
+        # replay, the database already contains the authorized response.
+        if run.clarification:
+            interrupt({"kind": "information"})
         return dict(state, route="step")
 
     def wait_approval(self, state):
@@ -272,7 +322,11 @@ class Workflow:
                     "awaiting_approval",
                     "Exact simulated proposal is pending supervisor review.",
                 )
-        interrupt({"kind": "approval"})
+        # A fast decision can revoke this delivery before its checkpoint lands.
+        # The next delivery must consume that persisted decision without waiting
+        # for a second (and impossible) approval.
+        if not approval:
+            interrupt({"kind": "approval"})
         with self.factory.begin() as s:
             run, _ = fence(s, self.run_id, self.owner)
             approval = s.scalar(select(Approval).where(Approval.proposal_id == run.proposal_id))
@@ -327,11 +381,13 @@ class Workflow:
             )
             run.status = {
                 "resolved": "completed",
+                "information_provided": "completed",
                 "policy_ineligible": "completed",
                 "approval_rejected": "rejected",
                 "escalated": "escalated",
             }.get(final["outcome"], "failed")
             run.state = dict(state)
+            run.updated_at = now()
             event(
                 s,
                 run.id,

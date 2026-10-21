@@ -1,5 +1,6 @@
 import hmac
 import time
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,6 +8,7 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from itsdangerous import BadSignature
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import Field, field_validator
 from sqlalchemy import func, select, text
@@ -14,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from resolveflow.agent.workflow import final_for
 from resolveflow.api.auth import ROLES, identity, session_payload, signer
+from resolveflow.api.security import consume_limit, verify_password
 from resolveflow.approvals.service import decide, scoped_run
 from resolveflow.domain.common import DomainError, canonical, instant
 from resolveflow.domain.policy import authorized_order
@@ -21,6 +24,8 @@ from resolveflow.jobs.queue import TERMINAL, enqueue, event
 from resolveflow.settings import get_settings
 from resolveflow.storage.db import sessions
 from resolveflow.storage.models import (
+    Account,
+    AuthSession,
     Case,
     Customer,
     Effect,
@@ -30,13 +35,14 @@ from resolveflow.storage.models import (
     Policy,
     Proposal,
     Run,
+    now,
     record,
 )
 from resolveflow.tools.contracts import Strict
 
 WEB = Path(__file__).parents[1] / "web"
 TEMPLATES = Environment(loader=FileSystemLoader(WEB), autoescape=select_autoescape(["html"]))
-app = FastAPI(title="ResolveFlow · Simulated Support Operations", version="0.1.0")
+app = FastAPI(title="ResolveFlow · Simulated Support Operations", version="0.2.0")
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 
 
@@ -54,6 +60,17 @@ async def request_context(request: Request, call_next):
             },
             status_code=413,
         )
+    # Enforce actual received bytes, including chunked requests without a length.
+    if request.method not in ("GET", "HEAD"):
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > 16384:
+                return JSONResponse(
+                    {"error": {"code": "invalid_arguments", "message": "Request too large"}},
+                    status_code=413,
+                )
+        request._body = bytes(body)
     response = await call_next(request)
     response.headers["X-Request-ID"] = request.state.request_id
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -73,6 +90,7 @@ def domain_error(request, exc):
             "request_id": request.state.request_id,
         },
         status_code=exc.status,
+        headers={"Retry-After": "60"} if exc.status == 429 else None,
     )
 
 
@@ -92,13 +110,26 @@ def index():
     cfg = get_settings()
     return TEMPLATES.get_template("index.html").render(
         demo_mode=cfg.demo_mode,
+        public_demo_enabled=cfg.public_demo_enabled,
         environment_label="HOSTED SANDBOX" if cfg.remote_deployment else "LOCAL SANDBOX",
     )
 
 
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "simulated": True}
+    return {"status": "ok", "simulated": True, "version": "0.2.0"}
+
+
+@app.get("/api/v1/config")
+def public_config():
+    cfg = get_settings()
+    return {
+        "public_demo": cfg.public_demo_enabled,
+        "provider_enabled": cfg.provider_enabled,
+        "model": cfg.provider_model if cfg.provider_enabled else None,
+        "default_mode": "provider" if cfg.provider_enabled else "baseline",
+        "version": "0.2.0",
+    }
 
 
 @app.get("/api/v1/ready")
@@ -124,16 +155,33 @@ def ready():
 
 class Login(Strict):
     role: str = Field(pattern="^(operator|supervisor|developer)$")
+    username: str | None = Field(None, min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
     password: str = Field(min_length=1, max_length=200)
 
 
-def set_session(role):
-    data = session_payload(role)
+def set_session(role, actor=None, workspace="demo", customers=None, old_session=None):
+    customers = list(customers if customers is not None else ROLES[role])
+    with sessions().begin() as s:
+        if old_session and (previous := s.get(AuthSession, old_session)):
+            previous.revoked = True
+        active = AuthSession(
+            actor=actor or role,
+            role=role,
+            workspace=workspace,
+            customers=customers,
+            expires_at=now() + timedelta(hours=8),
+        )
+        s.add(active)
+        s.flush()
+        data = session_payload(role, active.actor, active.id)
     response = JSONResponse(
         {
             "role": role,
             "csrf": data["csrf"],
-            "customers": ROLES[role],
+            "customers": customers,
+            "actor": active.actor,
+            "workspace": workspace,
+            "guest": workspace.startswith("guest-"),
             "demo": get_settings().demo_mode,
             "provider_enabled": get_settings().provider_enabled,
         }
@@ -154,11 +202,30 @@ def login(body: Login):
     cfg = get_settings()
     if cfg.public_read_only:
         raise DomainError("forbidden", "Public mode is read only", 403)
+    username = body.username or body.role
+    consume_limit(sessions(), "login", username, 10)
+    with sessions()() as s:
+        account = s.get(Account, username)
     expected = getattr(cfg, f"{body.role}_password").get_secret_value()
-    if not expected or not hmac.compare_digest(expected, body.password):
+    valid = bool(
+        account
+        and account.active
+        and account.role == body.role
+        and verify_password(body.password, account.password_hash)
+    )
+    # Compatibility for local/tests before CLI provisioning; remote logins use
+    # persisted password hashes and individual accounts exclusively.
+    if not account and not cfg.remote_deployment and not body.username:
+        valid = bool(expected and hmac.compare_digest(expected, body.password))
+    if not valid:
         time.sleep(0.1)
         raise DomainError("unauthorized", "Invalid credentials", 401)
-    return set_session(body.role)
+    return set_session(
+        body.role,
+        username,
+        account.workspace if account else "demo",
+        account.customers if account else None,
+    )
 
 
 @app.post("/api/v1/auth/demo/{role}")
@@ -167,14 +234,69 @@ def demo_login(role: str, request: Request):
         not get_settings().demo_mode
         or get_settings().public_read_only
         or role not in ROLES
-        or (
-            request.client
-            and request.client.host not in ("127.0.0.1", "::1", "testclient")
-            and request.headers.get("host", "").split(":")[0] not in ("localhost", "127.0.0.1")
-        )
+        or (request.client and request.client.host not in ("127.0.0.1", "::1", "testclient"))
     ):
         raise DomainError("forbidden", "Isolated local demo is unavailable", 403)
     return set_session(role)
+
+
+class GuestLogin(Strict):
+    role: str = Field("operator", pattern="^(operator|supervisor)$")
+
+
+@app.post("/api/v1/auth/guest")
+def guest_login(body: GuestLogin, request: Request):
+    cfg = get_settings()
+    if not cfg.public_demo_enabled or cfg.public_read_only:
+        raise DomainError("forbidden", "Interactive public demo is unavailable", 403)
+    origin = request.headers.get("origin")
+    if origin and origin.rstrip("/") != str(request.base_url).rstrip("/").replace(
+        "http://", "https://" if cfg.cookie_secure else "http://"
+    ):
+        raise DomainError("forbidden", "Cross-origin sign-in is unavailable", 403)
+    payload = None
+    try:
+        payload = signer().loads(request.cookies.get("rf_guest", ""), max_age=28800)
+    except BadSignature:
+        pass
+    if not payload:
+        consume_limit(
+            sessions(),
+            "guest-workspaces",
+            request.client.host if request.client else "unknown",
+            20,
+            3600,
+        )
+        token = uuid4().hex[:12].upper()
+        workspace = "guest-" + token
+        from resolveflow.storage.seed import seed_guest_workspace
+
+        with sessions().begin() as s:
+            customer = seed_guest_workspace(s, workspace, token)
+        payload = {"workspace": workspace, "customer": customer, "visitor": uuid4().hex}
+    old_session = None
+    try:
+        old_session = (
+            signer().loads(request.cookies.get("rf_session", ""), max_age=28800).get("session_id")
+        )
+    except BadSignature:
+        pass
+    response = set_session(
+        body.role,
+        f"visitor-{payload['visitor']}-{body.role}",
+        payload["workspace"],
+        [payload["customer"]],
+        old_session,
+    )
+    response.set_cookie(
+        "rf_guest",
+        signer().dumps(payload),
+        httponly=True,
+        secure=cfg.cookie_secure,
+        samesite="strict",
+        max_age=28800,
+    )
+    return response
 
 
 @app.get("/api/v1/auth/me")
@@ -184,13 +306,19 @@ def me(request: Request, scope=Depends(identity)):
         "role": scope.role,
         "csrf": data["csrf"],
         "customers": scope.customers,
+        "actor": scope.actor,
+        "workspace": scope.workspace,
+        "guest": scope.workspace.startswith("guest-"),
         "demo": get_settings().demo_mode,
         "provider_enabled": get_settings().provider_enabled,
     }
 
 
 @app.post("/api/v1/auth/logout")
-def logout(scope=Depends(identity)):
+def logout(request: Request, scope=Depends(identity)):
+    with sessions().begin() as s:
+        active = s.get(AuthSession, request.state.session_id)
+        active.revoked = True
     response = JSONResponse({"ok": True})
     response.delete_cookie("rf_session")
     return response
@@ -232,12 +360,15 @@ def public_run(s, run):
         "queued": ["cancel"],
         "running": ["cancel"],
         "recovering": ["cancel"],
-        "failed": ["retry"],
+        "failed": ["reinvestigate"],
+        "escalated": ["reinvestigate"],
+        "cancelled": ["reinvestigate"],
     }.get(run.status, [])
     result["timing"] = {
         "active_seconds": run.state.get("active_seconds"),
         "tool_calls": run.state.get("tool_calls", 0),
         "model_calls": run.state.get("model_calls", 0),
+        "model": run.state.get("provider_model"),
         "tokens": run.state.get("total_tokens") if run.state.get("token_usage_known") else None,
     }
     return result
@@ -255,6 +386,15 @@ def create_run(body: CreateRun, scope=Depends(identity)):
     payload = body.model_dump(exclude={"idempotency_key"})
     hash_ = canonical(payload)
     factory = sessions()
+    consume_limit(factory, "submissions", scope.actor, 15)
+    if body.mode == "provider" or scope.workspace.startswith("guest-"):
+        consume_limit(
+            factory,
+            "model-runs",
+            scope.workspace,
+            12 if scope.workspace.startswith("guest-") else 60,
+            3600,
+        )
     try:
         with factory.begin() as s:
             existing = s.scalar(
@@ -271,6 +411,13 @@ def create_run(body: CreateRun, scope=Depends(identity)):
             customer = s.get(Customer, body.customer_id)
             if not customer or customer.workspace != scope.workspace:
                 raise DomainError("not_found", "Customer not found", 404)
+            pending = s.scalar(
+                select(func.count()).select_from(Job).where(Job.status.in_(("queued", "running")))
+            )
+            if pending >= get_settings().max_pending_runs:
+                raise DomainError(
+                    "rate_limited", "Investigation queue is full. Please try again shortly.", 429
+                )
             run = Run(
                 workspace=scope.workspace,
                 actor=scope.actor,
@@ -491,6 +638,79 @@ def retry(run_id: str, scope=Depends(identity)):
         return public_run(s, run)
 
 
+class Reinvestigate(Strict):
+    idempotency_key: str = Field(min_length=8, max_length=100)
+    facts: Facts = Field(default_factory=Facts)
+
+
+@app.post("/api/v1/runs/{run_id}/reinvestigate", status_code=201)
+def reinvestigate(run_id: str, body: Reinvestigate, scope=Depends(identity)):
+    consume_limit(sessions(), "submissions", scope.actor, 15)
+    consume_limit(
+        sessions(),
+        "model-runs",
+        scope.workspace,
+        12 if scope.workspace.startswith("guest-") else 60,
+        3600,
+    )
+    with sessions().begin() as s:
+        previous = scoped_run(s, scope, run_id, lock=True)
+        request_key = "restart:" + canonical({"run": run_id, "key": body.idempotency_key})
+        hash_ = canonical({"run": run_id, "facts": body.facts.model_dump(exclude_none=True)})
+        existing = s.scalar(
+            select(Run).where(
+                Run.workspace == scope.workspace,
+                Run.actor == scope.actor,
+                Run.request_key == request_key,
+            )
+        )
+        if existing:
+            if existing.request_hash != hash_:
+                raise DomainError("conflict", "Restart key reused with different facts")
+            return public_run(s, existing)
+        if s.scalar(select(Effect.id).where(Effect.run_id == previous.id).limit(1)):
+            raise DomainError(
+                "conflict",
+                "This investigation already committed an effect; inspect the ledger before starting another request",
+            )
+        proposal = s.get(Proposal, previous.proposal_id) if previous.proposal_id else None
+        expired = proposal and proposal.status == "pending" and proposal.expires_at <= now()
+        if previous.status not in ("failed", "escalated", "cancelled") and not expired:
+            raise DomainError(
+                "conflict",
+                "Only failed, escalated, cancelled or expired investigations can be restarted",
+            )
+        pending = s.scalar(
+            select(func.count()).select_from(Job).where(Job.status.in_(("queued", "running")))
+        )
+        if pending >= get_settings().max_pending_runs:
+            raise DomainError(
+                "rate_limited", "Investigation queue is full. Please try again shortly.", 429
+            )
+        if expired and proposal:
+            proposal.status = "expired"
+            previous.status = "escalated"
+            job = s.scalar(select(Job).where(Job.run_id == previous.id).with_for_update())
+            job.status, job.owner, job.lease_until = "completed", None, None
+        run = Run(
+            workspace=scope.workspace,
+            actor=scope.actor,
+            customer_id=previous.customer_id,
+            request_key=request_key,
+            request_hash=hash_,
+            request=previous.request,
+            mode=previous.mode,
+            facts={**previous.facts, **body.facts.model_dump(exclude_none=True)},
+            state={},
+        )
+        s.add(run)
+        s.flush()
+        enqueue(s, run)
+        event(s, previous.id, "reinvestigated", {"new_run_id": run.id})
+        event(s, run.id, "submitted", {"mode": run.mode, "previous_run_id": previous.id})
+        return public_run(s, run)
+
+
 @app.get("/api/v1/sandbox")
 def sandbox(scope=Depends(identity)):
     with sessions()() as s:
@@ -544,7 +764,7 @@ def evaluations(scope=Depends(identity)):
     scope.require("developer")
     import json
 
-    path = Path("docs/evidence/evaluation.json")
+    path = Path("docs/evidence/evaluation-v2.json")
     if not path.exists():
         path = Path("data/sample/reference-evaluation.json")
     return {

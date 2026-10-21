@@ -15,7 +15,7 @@ def enqueue(session, run):
     if not job:
         session.add(Job(run_id=run.id))
     else:
-        if job.status == "waiting":
+        if job.status == "waiting" or run.status in ("awaiting_information", "awaiting_approval"):
             job.attempts = 0  # Authorized new input starts a new bounded delivery cycle.
         job.status, job.owner, job.lease_until = "queued", None, None
         job.available_at, job.error = now(), None

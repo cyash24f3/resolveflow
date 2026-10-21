@@ -2,7 +2,7 @@
 
 OpenAPI is served at `/openapi.json`, Swagger at `/docs`, all application endpoints at `/api/v1`. JSON requests use bounded bodies and reject unknown fields. Successful requests include `X-Request-ID`; error envelopes include `request_id`, `error.code` and `error.message`. Pagination is bounded; event cursors are stable monotonically increasing IDs. No UI cookie contains a provider key.
 
-Examples use local demo role login; remote deployments require `/auth/login` with the configured password. Replace placeholders manually, without committing passwords.
+Examples below use local demo role login. Remote named accounts use `/auth/login` with username, role and password. The public deployment also supports `POST /auth/guest` with an operator/supervisor role; that endpoint creates or resumes only the visitor’s isolated workspace. Replace placeholders manually, without committing passwords.
 
 ```sh
 curl -c /tmp/rf-cookies -X POST http://localhost:8090/api/v1/auth/demo/operator
@@ -31,3 +31,5 @@ curl -b /tmp/rf-cookies http://localhost:8090/api/v1/sandbox
 An approval request contains no action amount or quantity. Those exist only in the persisted proposal. Same request key/payload returns the existing run; changed payload returns 409. Same clarification or approval decision retries return the existing result. Competing decisions have one transactional winner. Record-scope failures return indistinguishable 404 responses for unauthorized and nonexistent records.
 
 Developer endpoints: `/runs/{id}/trace`, `/metrics`, `/evaluations`, and eligible `/runs/{id}/retry`. Operators can inspect concise observations and actual committed effects, not full protected traces. `/runs/{id}/cancel` prevents new effects once its lock wins. Health `/health` is liveness; `/ready` checks DB, checkpoint table and initialization; provider status is reported separately as disabled or configured-but-unverified.
+
+Public configuration is available at `GET /config`. `POST /auth/logout` revokes the session server-side. `POST /runs/{id}/reinvestigate` accepts a new `idempotency_key` and optional corrected facts for an eligible failed, escalated, cancelled or expired investigation. It returns a new run; old proposals and approvals remain immutable.
