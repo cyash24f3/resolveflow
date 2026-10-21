@@ -15,7 +15,10 @@ class OrderArgs(Strict):
 
 class ResolutionArgs(OrderArgs):
     action: Literal["refund", "replacement", "cancellation", "escalation"]
-    reason: Literal["damage", "delay", "cancellation", "ambiguous"] = "damage"
+    reason: Literal["damage", "delay", "cancellation", "ambiguous"] = Field(
+        "damage",
+        description="Use cancellation for cancellation actions; otherwise the actual damage or delay reason.",
+    )
     amount_minor: int = Field(
         0,
         ge=0,
@@ -32,6 +35,8 @@ class ResolutionArgs(OrderArgs):
 
     @model_validator(mode="after")
     def action_fields(self):
+        if self.action == "cancellation" and self.reason != "cancellation":
+            raise ValueError("Cancellation actions require reason 'cancellation'")
         if self.action != "refund" and self.amount_minor != 0:
             raise ValueError("Only refunds specify a monetary amount")
         if self.action != "replacement" and self.quantity != 0:
@@ -129,6 +134,15 @@ def definitions():
     # Citation IDs are server bookkeeping, not a language-model prediction task.
     # The executor attaches the exact matching observed eligibility record.
     for definition in definitions:
+        if definition["function"]["name"] in (
+            "check_resolution_eligibility",
+            "propose_resolution",
+        ):
+            parameters = definition["function"]["parameters"]
+            parameters["properties"]["reason"].pop("default", None)
+            parameters["required"] = list(
+                dict.fromkeys([*parameters.get("required", []), "reason"])
+            )
         if definition["function"]["name"] in ("propose_resolution", "finish_investigation"):
             parameters = definition["function"]["parameters"]
             parameters["properties"].pop("evidence_ids", None)

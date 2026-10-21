@@ -5,6 +5,7 @@ import json
 import time
 from pathlib import Path
 
+from playwright.sync_api import Error as BrowserError
 from playwright.sync_api import sync_playwright
 
 
@@ -13,33 +14,58 @@ def main():
     parser.add_argument("--base-url", default="http://127.0.0.1:8091")
     parser.add_argument("--mode", choices=["baseline", "provider"], default="baseline")
     parser.add_argument("--output", default="/tmp/resolveflow-public-smoke")
+    parser.add_argument(
+        "--session-state", help="Private session file for recovering a network interruption"
+    )
+    parser.add_argument("--resume-run", help="Resume an existing request awaiting approval")
     args = parser.parse_args()
+    if args.resume_run and not args.session_state:
+        parser.error("--resume-run requires --session-state")
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     errors = []
     with sync_playwright() as browser_api:
         browser = browser_api.chromium.launch()
-        context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        context = browser.new_context(
+            viewport={"width": 1440, "height": 1000},
+            storage_state=args.session_state if args.resume_run else None,
+        )
         page = context.new_page()
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(args.base_url, wait_until="domcontentloaded", timeout=120000)
-        page.locator('#content [data-guest="operator"]').click(timeout=30000)
-        page.locator('[data-example="cancellation"]').click()
-        page.locator('select[name="mode"]').select_option(args.mode)
-        with page.expect_response(
-            lambda r: r.url.endswith("/api/v1/runs") and r.request.method == "POST"
-        ) as submitted:
-            page.locator('#new-request button[type="submit"]').click()
-        assert submitted.value.status == 201, submitted.value.text()
-        run_id = submitted.value.json()["id"]
+        if args.resume_run:
+            run_id = args.resume_run
+        else:
+            page.locator('#content [data-guest="operator"]').click(timeout=30000)
+            page.locator('[data-example="cancellation"]').click()
+            page.locator('select[name="mode"]').select_option(args.mode)
+            with page.expect_response(
+                lambda r: r.url.endswith("/api/v1/runs") and r.request.method == "POST"
+            ) as submitted:
+                page.locator('#new-request button[type="submit"]').click()
+            assert submitted.value.status == 201, submitted.value.text()
+            run_id = submitted.value.json()["id"]
+        if args.session_state:
+            session_path = Path(args.session_state)
+            session_path.touch(mode=0o600)
+            session_path.chmod(0o600)
+            context.storage_state(path=str(session_path))
+        print("Submitted", args.mode, run_id, flush=True)
 
         def wait_for(run_id, statuses):
-            deadline = time.monotonic() + 220
+            # Include queue time and polling overhead beyond the worker's
+            # bounded 240-second active investigation budget.
+            deadline = time.monotonic() + 300
             while time.monotonic() < deadline:
-                response = page.request.get(args.base_url + "/api/v1/runs/" + run_id)
+                try:
+                    response = page.request.get(args.base_url + "/api/v1/runs/" + run_id)
+                except BrowserError:
+                    page.wait_for_timeout(2000)
+                    continue
                 assert response.status == 200
                 run = response.json()
                 if run["status"] in statuses:
+                    print("Reached", run_id, run["status"], flush=True)
                     return run
                 assert run["status"] not in ("failed", "escalated"), run["final"]
                 page.wait_for_timeout(1000)
@@ -112,4 +138,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BrowserError:
+        # Playwright exception details can include Cookie headers. Keep private
+        # session material out of exported verification logs.
+        raise SystemExit(
+            "Browser operation failed; check connectivity and private session state."
+        ) from None
