@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ResolveFlow \u00b7 Simulated Support Operations",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
     "/": {
@@ -27,6 +27,22 @@
       "get": {
         "summary": "Health",
         "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config": {
+      "get": {
+        "summary": "Public Config",
+        "operationId": "public_config_api_v1_config_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -106,6 +122,42 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/guest": {
+      "post": {
+        "summary": "Guest Login",
+        "operationId": "guest_login_api_v1_auth_guest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestLogin"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -600,6 +652,53 @@
         }
       }
     },
+    "/api/v1/runs/{run_id}/reinvestigate": {
+      "post": {
+        "summary": "Reinvestigate",
+        "operationId": "reinvestigate_api_v1_runs__run_id__reinvestigate_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reinvestigate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sandbox": {
       "get": {
         "summary": "Sandbox",
@@ -932,6 +1031,19 @@
         "type": "object",
         "title": "Facts"
       },
+      "GuestLogin": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "pattern": "^(operator|supervisor)$",
+            "title": "Role",
+            "default": "operator"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GuestLogin"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -952,6 +1064,20 @@
             "pattern": "^(operator|supervisor|developer)$",
             "title": "Role"
           },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_.-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
           "password": {
             "type": "string",
             "maxLength": 200,
@@ -966,6 +1092,25 @@
           "password"
         ],
         "title": "Login"
+      },
+      "Reinvestigate": {
+        "properties": {
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 8,
+            "title": "Idempotency Key"
+          },
+          "facts": {
+            "$ref": "#/components/schemas/Facts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idempotency_key"
+        ],
+        "title": "Reinvestigate"
       },
       "ValidationError": {
         "properties": {

@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -16,8 +16,18 @@ class OrderArgs(Strict):
 class ResolutionArgs(OrderArgs):
     action: Literal["refund", "replacement", "cancellation", "escalation"]
     reason: Literal["damage", "delay", "cancellation", "ambiguous"] = "damage"
-    amount_minor: int = Field(0, ge=0, le=100000000)
-    quantity: int = Field(0, ge=0, le=100)
+    amount_minor: int = Field(
+        0,
+        ge=0,
+        le=100000000,
+        description="Refund amount in minor units. Must be 0 for replacement, cancellation and escalation.",
+    )
+    quantity: int = Field(
+        0,
+        ge=0,
+        le=100,
+        description="Replacement quantity only. Must be 0 for refunds, cancellation and escalation.",
+    )
     currency: str = Field("INR", pattern=r"^[A-Z]{3}$")
 
     @model_validator(mode="after")
@@ -35,18 +45,25 @@ class CaseArgs(OrderArgs):
 
 class ClarificationArgs(Strict):
     fields: list[
-        Literal["order_id", "damage_description", "damage_reported_at", "photo_reviewed"]
-    ] = Field(min_length=1, max_length=4)
+        Literal["order_id", "damage_description", "damage_reported_at", "photo_reviewed", "action"]
+    ] = Field(min_length=1, max_length=5)
     question: str = Field(min_length=1, max_length=500)
 
 
 class ProposalArgs(ResolutionArgs):
-    evidence_ids: list[Text] = Field(min_length=1, max_length=12)
+    evidence_ids: list[Text] = Field(default_factory=list, max_length=12)
+
+
+class FinishArgs(Strict):
+    outcome: Literal["information_provided", "policy_ineligible", "escalated"]
+    explanation: str = Field(min_length=1, max_length=1200)
+    evidence_ids: list[Text] = Field(default_factory=list, max_length=24)
 
 
 class FinalResponse(Strict):
     outcome: Literal[
         "resolved",
+        "information_provided",
         "needs_information",
         "awaiting_approval",
         "policy_ineligible",
@@ -65,6 +82,10 @@ class FinalResponse(Strict):
 
 
 TOOLS: dict[str, tuple[type[Strict], str]] = {
+    "finish_investigation": (
+        FinishArgs,
+        "Finish a read-only answer or escalation. Never supply action IDs or proposal IDs. Business outcomes are constructed by the server.",
+    ),
     "get_order": (
         OrderArgs,
         "Retrieve assigned customer's order, minor currency amounts and revision.",
@@ -94,7 +115,7 @@ TOOLS: dict[str, tuple[type[Strict], str]] = {
 
 
 def definitions():
-    return [
+    definitions: list[dict[str, Any]] = [
         {
             "type": "function",
             "function": {
@@ -105,3 +126,13 @@ def definitions():
         }
         for name, (schema, desc) in TOOLS.items()
     ]
+    # Citation IDs are server bookkeeping, not a language-model prediction task.
+    # The executor attaches the exact matching observed eligibility record.
+    for definition in definitions:
+        if definition["function"]["name"] in ("propose_resolution", "finish_investigation"):
+            parameters = definition["function"]["parameters"]
+            parameters["properties"].pop("evidence_ids", None)
+            parameters["required"] = [
+                name for name in parameters.get("required", []) if name != "evidence_ids"
+            ]
+    return definitions

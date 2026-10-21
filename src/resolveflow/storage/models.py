@@ -219,3 +219,31 @@ class Payment(Base):
     currency: Mapped[str] = mapped_column(String)
     provider: Mapped[str] = mapped_column(String, default="simulated")
     revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+    username: Mapped[str] = mapped_column(String, primary_key=True)
+    password_hash: Mapped[str] = mapped_column(String)
+    role: Mapped[str] = mapped_column(String)
+    workspace: Mapped[str] = mapped_column(String)
+    customers: Mapped[list] = mapped_column(JSON)
+    active: Mapped[bool] = mapped_column(default=True)
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    actor: Mapped[str] = mapped_column(String, index=True)
+    role: Mapped[str] = mapped_column(String)
+    workspace: Mapped[str] = mapped_column(String, index=True)
+    customers: Mapped[list] = mapped_column(JSON)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked: Mapped[bool] = mapped_column(default=False)
+
+
+class RateBucket(Base):
+    __tablename__ = "rate_buckets"
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    hits: Mapped[int] = mapped_column(Integer, default=1)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

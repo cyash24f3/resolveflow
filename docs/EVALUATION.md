@@ -1,32 +1,31 @@
-# Evaluation methodology and honest limitations
+# Evaluation
 
-Dataset: 100 AI-authored synthetic families, 20 templates with five separate fictional orders each, seed 20260930. The frozen family hash is in `data/sample/scenarios.json`. Thirty-five families were assigned development and 65 test before the first benchmark execution. Template reuse is explicitly disclosed; these are not production support requests or human-reviewed ground truth. Sixty-five percent are labeled inappropriate for an immediate protected effect due to missing facts, restrictions, rejection, expiry, stale state or authorization.
+## Current v2 methodology
 
-The baseline and fixture use identical tool/domain/approval services and controlled scenario clocks. The evaluator seeds isolated PostgreSQL schemas, truncates all business/checkpoint tables between episodes, retains initial/final hashes, and keeps gold outcomes outside agent-visible state. Missing-information and rejection outcomes can satisfy the oracle. Scripted supervisor decisions are simulated users, not human review.
+`data/sample/scenarios-v2.json` freezes 100 AI-authored synthetic episodes using seed 20261021. Seven whole categories (35 episodes) are development; thirteen whole categories (65 episodes) are test. No category crosses the split. This improves template separation but is still a small synthetic dataset, with no human-reviewed labels or production-distribution claim.
 
-First execution: development 35/35 assertions passed per system; test 65/65 passed per system; no harness errors and no forbidden effects observed in these synthetic episodes. The committed protected-action approval denominator was 12 in development and 23 in test, per system. Report paths and raw fictional episodes are in `docs/evidence`. Fixture/baseline parity does not establish superiority of an agent.
+The evaluator supplies operator evidence, the request and observed clock. It no longer supplies the expected action through `run.facts`. Expected actions, outcomes and effect counts remain evaluator-only. The late-report category advances the clock beyond the report date and explicitly asserts DAM-02, so a future-date rejection cannot impersonate a window-boundary test.
 
-A **separate concurrency unit test subsequently failed** before a repair: two valid approvals both read stale ORM state after acquiring an order lock. The retained failure is `docs/evidence/concurrency-failure.json`. The regression passes after refreshing the locked order. First benchmark reports are kept as historical pre-repair results and do not establish that concurrency was safe. Later reruns must be labeled exposed retests. This repair was driven by a unit invariant failure, not by prompt tuning on the test split.
+Every episode gets fresh isolated records. Task completion checks the intended observable outcome, exact effect count/action/amount, scope, unique operations and named fault firing. `evaluation/oracle.py` separately checks the ledger against initial order state, cumulative monetary limits, damage evidence/windows, replacement restrictions and approval linkage. Policy-violation counts use this independent oracle rather than only checking that an approval exists.
 
-Metrics use explicit numerators and denominators. `null` means undefined when no event applies. Task completion includes evaluated technical/model/tool failures as failures, while harness errors are reported separately with total scheduled count. Approval compliance divides correctly linked approved effects by committed protected effects. Duplicate rate uses duplicate scenarios only; read-recovery rate uses named injected recoverable read failures only. The separate process restart and bounded contention workload have their own evidence.
+Baseline and fixture are related scripted implementations, not independent AI competitors. Their comparison validates workflow consistency. Real provider checks are opt-in and bounded to five episodes; they establish integration behavior for the recorded model(s), not a robust intelligence ranking. Actual model names and free-model fallback events are recorded. Unknown usage remains unknown. Human semantic review remains pending.
 
-Latency is active graph processing, excluding user/simulated wait and harness setup. Reports preserve measured p50/p95 values, concurrency 1, request counts, hardware context and warm localhost DB conditions. Baseline and fixture were run in sequential blocks while Docker image building also used resources. **Do not infer comparative speed or production capacity** from those numbers. `load.json` is an additional 24-delivery / eight-thread operation-ledger contention experiment, not a throughput SLA.
+## Evidence and historical results
 
-Usage and cost are unknown/not applicable in credential-free modes; no cost is fabricated as zero for unknown live requests. The real provider adapter has mocked protocol/error tests, but **live provider quality/integration remains unverified** without a configured endpoint or key. There is no live-provider vs baseline score. Provider aliases and sampling nondeterminism limit future reproducibility.
+Reports write to timestamped output directories and preserve failures. New runs are labeled regression executions. The v1 `scenarios.json` and existing `evaluation*.json` files are historical evidence from the earlier methodology, which reused categories across splits and supplied the expected action. They must not be presented as v2 or as live-model accuracy.
 
-Semantic review rubric (human review pending): correctness 0 = wrong, 1 = partly correct or missing a material condition, 2 = correct with required conditions. Label factual claims supported, unsupported or ambiguous; check actual outcome, preserved policy conditions, observed references, reported vs verified facts, and disclosure of pending/failed effects. The CSV sheets are blank and do not imply a reviewer existed. No automated LLM judge was used.
+The first live integration sample exposed quota exhaustion and insufficient tool-validation feedback. These failures were used to improve provider scheduling, explicit free-model routing and argument repair. Later samples are exposed regression checks and should be described as such.
 
-Open raw per-episode traces:
+Latency is active graph processing, excluding human waits and harness setup. Provider scheduling/backoff is included. A localhost scripted latency is not an end-to-end hosted latency or an SLA. The historical 24-delivery contention experiment tests one operation's replay behavior, not independent-request throughput.
 
-```sh
-python3 - <<'PY'
-import gzip, json
-with gzip.open('docs/evidence/episodes-test.jsonl.gz', 'rt') as file:
-    for line in file:
-        episode = json.loads(line)
-        if episode['family_id'] == 'F096':
-            print(json.dumps(episode, indent=2))
-PY
+## Commands
+
+```bash
+uv run pytest -q
+uv run python -m resolveflow.evaluation.runner --split ci --systems baseline fixture
+uv run python -m resolveflow.evaluation.runner --split development --systems baseline
+uv run python -m resolveflow.evaluation.runner --split test --systems baseline
+uv run python -m resolveflow.evaluation.runner --split ci --systems provider --allow-live --limit 5
 ```
 
-Configuration was chosen before development benchmark runs: one tool per model turn, 12 model turns, 24 tools, 30k reported token budget, 240s active budget, two repair attempts and two provider retries. Required targets were deterministic policy/authorization invariants and reproducible sandbox journeys; no model-accuracy target was invented. Configuration was not tuned against successful synthetic test results. CLI evaluation writes a new run directory and never overwrites a failure.
+All database-backed checks require a PostgreSQL role with schema-creation permission. Live runs additionally need an explicitly enabled free/local provider. They never silently substitute a fixture.

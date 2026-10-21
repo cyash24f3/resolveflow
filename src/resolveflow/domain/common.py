@@ -17,7 +17,10 @@ def canonical(value) -> str:
 
 
 def instant(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("Timestamp must include a timezone offset")
+    return parsed.astimezone(UTC)
 
 
 def clock(run) -> datetime:
@@ -32,7 +35,7 @@ class Scope:
     customers: tuple[str, ...]
 
     def require(self, role: str):
-        if self.role not in (role, "developer"):
+        if self.role != role:
             raise DomainError("forbidden", "This role cannot perform that action", 403)
 
     def customer(self, customer_id: str):

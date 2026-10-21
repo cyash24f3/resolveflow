@@ -1,0 +1,20 @@
+"""Add named accounts, revocable sessions and shared request budgets."""
+
+from alembic import op
+
+from resolveflow.storage.models import Account, AuthSession, RateBucket
+
+revision = "003"
+down_revision = "002"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    for model in (Account, AuthSession, RateBucket):
+        model.__table__.create(op.get_bind(), checkfirst=True)
+
+
+def downgrade():
+    for model in (RateBucket, AuthSession, Account):
+        model.__table__.drop(op.get_bind())

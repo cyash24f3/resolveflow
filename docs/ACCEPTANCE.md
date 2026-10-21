@@ -27,3 +27,8 @@ The project is published at [cyash24f3/resolveflow](https://github.com/cyash24f3
 Current [GitHub-hosted checks](https://github.com/cyash24f3/resolveflow/actions/runs/36759030316) passed on `6a8986e` with all 56 tests, including the hosted process and remote security configuration guards. The actual [public application](https://resolveflow-wojr.onrender.com) uses Render Free and Neon Free. Its live HTTPS baseline journey passed independently of the local container checks.
 
 No production capacity, real attachment inspection, real financial effect, model quality score or paid service was verified. The complete credential-free sandbox is the core delivery. Follow `FREE_TIERS.md` to configure a bounded real-provider sample separately.
+
+
+## October 2026 hardening release
+
+The original evidence below is historical. Current checks include the expanded regression suite, all 100 v2 baseline episodes, actual process crash recovery, a migration on a Neon child branch, and the public browser journey. See `evaluation-v2.json`, `live-integration-before-hardening.json` and the release verification artifacts for their distinct scopes. Live samples are exposed integration checks, with human semantic review still pending.

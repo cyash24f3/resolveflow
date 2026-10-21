@@ -4,6 +4,7 @@ import platform
 import subprocess
 import time
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,6 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from resolveflow.agent.workflow import Workflow
 from resolveflow.approvals.service import decide, execute
 from resolveflow.domain.common import DomainError, Scope, canonical
+from resolveflow.evaluation.oracle import ledger_violations
 from resolveflow.jobs.queue import claim, fence
 from resolveflow.jobs.worker import process
 from resolveflow.settings import get_settings
@@ -145,7 +147,6 @@ def setup(s, family, mode):
         "damage_description": "Customer reports a cracked shade; sandbox photo reviewed by operator.",
         "damage_reported_at": "2026-09-10T10:00:00+00:00",
         "photo_reviewed": True,
-        "action": family["action"],
     }
     if category == "late_report":
         facts["damage_reported_at"] = "2026-10-08T10:00:00+00:00"
@@ -190,7 +191,8 @@ def episode(db, family, mode):
     fired: list[str] = []
     with db.factory.begin() as s:
         run_id = setup(s, family, mode)
-        initial = canonical(snapshot(s))
+        initial_records = snapshot(s)
+        initial = canonical(initial_records)
     found = claim(db.factory)
     if family["category"] == "read_timeout":
         flow = Workflow(db.factory, db.saver, *found)
@@ -242,22 +244,38 @@ def episode(db, family, mode):
         run = s.get(Run, run_id)
         effects = list(s.scalars(select(Effect).where(Effect.run_id == run_id)))
         approvals = {a.id: a for a in s.scalars(select(Approval))}
-        violations = sum(
+        authorization_violations = sum(
             1
             for x in effects
             if x.approval_id not in approvals
             or approvals[x.approval_id].decision != "approve"
             or not approvals[x.approval_id].consumed
         )
+        proposal_records = {p.id: record(p) for p in s.scalars(select(Proposal))}
+        independent_violations = ledger_violations(
+            initial_records,
+            [record(e) for e in effects],
+            proposal_records,
+            {k: record(a) for k, a in approvals.items()},
+            run.facts,
+            run.clock,
+        )
+        violations = len(independent_violations)
         assertions = {
             "outcome": run.final.get("outcome") in family["acceptable_outcomes"],
             "effect_count": len(effects) == family["required_effects"],
-            "matching_approval": violations == 0,
+            "matching_approval": authorization_violations == 0,
+            "independent_policy_checks": not independent_violations,
             "exact_action": all(x.action == family["action"] for x in effects),
             "scope": all(x.order_id == family["order_id"] for x in effects),
             "unique_operation": len({x.operation_id for x in effects}) == len(effects),
             "faults_fired": len(fired) == len(family["fault_schedule"]),
         }
+        if family["category"] == "late_report":
+            assertions["damage_window_rule"] = any(
+                o["tool"] == "check_resolution_eligibility" and o["data"]["rule_ids"] == ["DAM-02"]
+                for o in run.state.get("observations", [])
+            )
         if effects and family["action"] == "refund":
             assertions["exact_amount"] = all(
                 x.amount_minor == (9900 if family["reason"] == "delay" else family["paid_minor"])
@@ -285,7 +303,8 @@ def episode(db, family, mode):
             ],
             "faults_fired": fired,
             "protected_effects": len(effects),
-            "approved_effects": len(effects) - violations,
+            "approved_effects": len(effects) - authorization_violations,
+            "independent_violations": independent_violations,
             "violations": violations,
             "active_seconds": run.state.get("active_seconds", 0),
             "wall_seconds": time.perf_counter() - started,
@@ -352,7 +371,7 @@ def manifest(dataset):
         "dataset_hash": canonical(dataset),
         "lock_hash": canonical(Path("uv.lock").read_text()),
         "policy_seed_hash": canonical(Path("src/resolveflow/storage/seed.py").read_text()),
-        "prompt_version": "resolveflow-v1",
+        "prompt_version": "resolveflow-v2",
         "tool_contract": "v1",
         "model": cfg.provider_model,
         "settings": {
@@ -367,9 +386,9 @@ def manifest(dataset):
             "user_reported": "MacBook Air M5, 24 GB memory, 1 TB SSD",
         },
         "price_config": None,
-        "date": "2026-09-30",
+        "date": datetime.now(UTC).isoformat(),
         "review_provenance": "AI-authored synthetic scenarios, no human semantic review",
-        "split_exposure": "First execution; any later retest is recorded by a separate run directory.",
+        "split_exposure": "Regression execution on AI-authored synthetic data; no unseen-production or human-review claim.",
     }
 
 
@@ -382,7 +401,7 @@ def main():
         "--systems",
         nargs="+",
         choices=["baseline", "fixture", "provider"],
-        default=["baseline", "fixture"],
+        default=["baseline"],
     )
     parser.add_argument("--limit", type=int)
     parser.add_argument("--allow-live", action="store_true")
@@ -392,7 +411,7 @@ def main():
         parser.error(
             "Live runs require --allow-live and --limit 1..5 on an explicitly configured free/local endpoint"
         )
-    dataset = json.loads(Path("data/sample/scenarios.json").read_text())
+    dataset = json.loads(Path("data/sample/scenarios-v2.json").read_text())
     families = [
         f for f in dataset["families"] if args.split in ("all", "ci") or f["split"] == args.split
     ]

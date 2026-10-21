@@ -1,55 +1,13 @@
-# Free-only services and the requested Mac
+# Free services and inference
 
-Decision date: 30 September 2026. The project is usable with no provider account. Render Free and Neon Free were provisioned for the hosted sandbox. No paid subscription, paid API or upgrade was enabled.
+The hosted application uses the existing Render Free service and Neon Free PostgreSQL project. No hosting plan was upgraded. Idle free hosting can suspend; queued work resumes after the instance wakes. CI uses standard GitHub-hosted Linux runners for the public repository.
 
-| Component | Selected path | Cost boundary |
-|---|---|---|
-| API, interface, worker | Render Free supervised Python host; local FastAPI + Jinja/vanilla JS for development | Free web compute; no paid worker |
-| Business DB, jobs, checkpoints | Local PostgreSQL 17 in Docker | No managed DB account |
-| Deterministic demos/evaluation | Baseline + clearly labeled fixture | No model calls |
-| Live model (optional) | Ollama locally; one configurable OpenAI-compatible adapter | No API bill; model download, memory and electricity are local resources |
-| Hosted live model (optional) | Groq Free Plan, manually supplied key | Remain on Free Plan; rate limits are not a billing cap for a paid account |
-| Source and CI | Public [GitHub repository](https://github.com/cyash24f3/resolveflow), standard GitHub-hosted Linux runner | Public-repository standard runners are free; no larger runner selected |
-| Remote database | Neon Free Plan | Free Plan confirmed; dedicated ResolveFlow project, compute capped at 0.25 CU |
-| Deployment | Render Free Python web service + local Docker Compose | [Live HTTPS app](https://resolveflow-wojr.onrender.com); sleeps on idle, no paid dedicated worker |
+The preferred inference model is Gemini 3.8 Flash, with configured free Gemini 3.6 Flash and Gemini 3.5 Flash-Lite fallbacks. Google publishes free input/output pricing and a roughly one-million-token model input window. Actual quotas depend on the API project and model. The integration key reported 20 daily requests for Gemini 3.8 Flash, so the application detects daily exhaustion and selects another explicitly configured free model. It records the actual model and does not silently substitute scripted results.
 
-The workflow uses `ubuntu-latest`, a standard hosted runner. GitHub documents free Actions usage for public repositories using standard runners: [Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions). No paid runner, hosting plan or billing setting was enabled.
+Use a Google AI Studio project on the free tier. An API key does not itself prove billing status; the application does not change billing settings or enroll a paid plan. The app’s own context and active-time budgets are smaller than the model maximum. Free inference has no availability SLA.
 
-Groq publishes free-plan rate limits and an OpenAI-compatible endpoint. Exact allowances depend on account/model, and identifiers can change: [rate limits](https://console.groq.com/docs/rate-limits), [compatibility](https://console.groq.com/docs/openai). No free allowance is treated as permission to use a paid account. ResolveFlow cannot infer the billing plan from an API key.
+References: [pricing](https://ai.google.dev/gemini-api/docs/pricing), [model capabilities](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash), [account quotas](https://ai.google.dev/gemini-api/docs/rate-limits).
 
-Ollama supports local tool calling and an OpenAI-compatible chat endpoint: [compatibility](https://docs.ollama.com/api/openai-compatibility), [tool calling](https://docs.ollama.com/capabilities/tool-calling). The following local configuration is implemented but not live-verified:
+For credential-free development, use the deterministic baseline or fixture. For local model inference, use a tool-capable Ollama model and its OpenAI-compatible endpoint. When running the worker in Docker, set `DOCKER_PROVIDER_BASE_URL` to an address reachable from the container. Use the same HTTPS endpoint as `PROVIDER_BASE_URL` for hosted inference, or `http://host.docker.internal:11434/v1` for a model on the Mac host. No model weights are downloaded by this repository.
 
-```sh
-# Install Ollama separately from its official download, then:
-ollama pull qwen3:8b
-ollama serve
-```
-
-Set `.env` values (never in browser code):
-
-```dotenv
-PROVIDER_ENABLED=true
-PROVIDER_BASE_URL=http://localhost:11434/v1
-PROVIDER_MODEL=qwen3:8b
-PROVIDER_API_KEY=
-# For Compose's worker, the endpoint needs to reach the macOS host:
-DOCKER_PROVIDER_BASE_URL=http://host.docker.internal:11434/v1
-```
-
-For a manually configured **Groq Free Plan**, use:
-
-```dotenv
-PROVIDER_ENABLED=true
-PROVIDER_BASE_URL=https://api.groq.com/openai/v1
-DOCKER_PROVIDER_BASE_URL=https://api.groq.com/openai/v1
-PROVIDER_MODEL=openai/gpt-oss-20b
-PROVIDER_API_KEY=YOUR_FREE_PLAN_KEY
-```
-
-These are example configurable model aliases, not immutable revisions or verified model recommendations. Check your provider's available models. Restart the API and worker after configuration changes. Use `--allow-live --systems provider --limit 1` for the first isolated verification; this runner refuses unbounded live evaluations. The maximum request budget is the per-turn retry cap multiplied by the configured logical model-call cap, and the response token limit is 1,000 per request. Unknown usage from timeouts remains unknown. There is no paid pricing estimate in the evidence.
-
-For 24 GB unified memory, begin with one model at a time and one worker. An 8B quantized model is a conservative starting experiment, not a measured throughput promise. Avoid 70B models and simultaneous large downloads. Compose limits PostgreSQL to 768 MiB, API to 512 MiB and worker to 768 MiB; Docker's VM overhead is additional. A Docker Desktop allocation around 4 GB is a starting configuration, not something this build changed globally. Leave memory for macOS and other applications. Keep inference native on macOS so the local inference runtime can use Apple silicon acceleration.
-
-An Air is fanless: sustained inference may slow as it warms. Measure your selected model before increasing concurrency. The 1 TB SSD has ample nominal room for this source project; actual available space and model sizes must be checked before downloads. No model weights were automatically downloaded.
-
-Docker Desktop licensing is subject to its terms, including personal/student use: [official Mac installation guidance](https://docs.docker.com/desktop/setup/install/mac-install/). The requested cloud path is [Render Free](https://render.com/docs/free) and [Neon Free](https://neon.com/blog/building-patterns-unlocked-by-scale-to-zero). See [deployment setup and verification status](DEPLOYMENT.md). Public HTTPS hosting and the baseline approval/rejection workflow are verified. A sleeping process pauses the worker and needs an incoming request to resume. Render’s free instance hours are shared across the workspace’s services; ResolveFlow does not get a separate always-on allowance. No keep-alive service was installed.
+The default Compose memory limits are PostgreSQL 768 MiB, API 512 MiB and worker 768 MiB, plus Docker overhead. Benchmark local inference before increasing concurrency. Paid external business integrations are outside the fictional sandbox’s scope.

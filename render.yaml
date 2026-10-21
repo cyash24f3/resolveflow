@@ -12,7 +12,7 @@ services:
     startCommand: .venv/bin/python -m resolveflow.hosted
     healthCheckPath: /api/v1/ready
     maxShutdownDelaySeconds: 130
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: 'off'
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.13"
@@ -35,7 +35,25 @@ services:
       - key: PUBLIC_READ_ONLY
         value: "false"
       - key: PROVIDER_ENABLED
-        value: "false"
+        value: "true"
+      - key: PROVIDER_BASE_URL
+        value: "https://generativelanguage.googleapis.com/v1beta/openai"
+      - key: PROVIDER_MODEL
+        value: "gemini-3.8-flash"
+      - key: PROVIDER_FALLBACK_MODELS
+        value: '["gemini-3.6-flash","gemini-3.5-flash-lite"]'
+      - key: PROVIDER_API_KEY
+        sync: false
+      - key: PROVIDER_REASONING_EFFORT
+        value: "medium"
+      - key: PROVIDER_MAX_OUTPUT_TOKENS
+        value: "4096"
+      - key: PROVIDER_MIN_INTERVAL_SECONDS
+        value: "6"
+      - key: PUBLIC_DEMO_ENABLED
+        value: "true"
+      - key: WORKER_CONCURRENCY
+        value: "2"
       - key: WORKER_IDLE_SECONDS
         value: "5"
       - key: DATABASE_POOL_SIZE

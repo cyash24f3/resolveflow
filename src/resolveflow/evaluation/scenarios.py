@@ -103,7 +103,9 @@ def generate():
                     "category": category,
                     "variant": variant,
                     "order_id": order_id,
-                    "clock": "2026-09-30T12:00:00+00:00",
+                    "clock": "2026-10-10T12:00:00+00:00"
+                    if category == "late_report"
+                    else "2026-09-30T12:00:00+00:00",
                     "message": message,
                     "action": action,
                     "reason": reason,
@@ -129,28 +131,28 @@ def generate():
                     },
                 }
             )
-    ids = [f["id"] for f in families]
-    random.Random(20260930).shuffle(ids)
-    dev = set(ids[:35])
+    categories = list(CATEGORIES)
+    random.Random(20261021).shuffle(categories)
+    development_categories = set(categories[:7])
     for family in families:
-        family["split"] = "development" if family["id"] in dev else "test"
+        family["split"] = "development" if family["category"] in development_categories else "test"
     return families
 
 
-def freeze(path=Path("data/sample/scenarios.json")):
+def freeze(path=Path("data/sample/scenarios-v2.json")):
     if path.exists():
         raise RuntimeError(
             "Frozen scenarios already exist; create a new version rather than overwrite"
         )
     families = generate()
     doc = {
-        "version": "synthetic-v1",
+        "version": "synthetic-v2",
         "frozen_before_first_benchmark": True,
-        "seed": 20260930,
+        "seed": 20261021,
         "families": families,
         "family_hash": canonical(families),
         "split_counts": {"development": 35, "test": 65},
-        "template_reuse": "20 authored templates, five separate seeded orders each; no within-family variants cross splits. Synthetic template reuse limits generalization.",
+        "template_reuse": "Category-disjoint split: seven development templates and thirteen test templates; five independently seeded orders each. AI-authored synthetic labels remain unreviewed.",
     }
     path.write_text(json.dumps(doc, indent=2) + "\n")
     return doc

@@ -2,6 +2,8 @@ import argparse
 import json
 import signal
 import threading
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -10,11 +12,11 @@ from langgraph.types import Command
 from sqlalchemy import select
 
 from resolveflow.agent.workflow import Workflow, final_for
-from resolveflow.domain.common import DomainError
+from resolveflow.domain.common import DomainError, clock
 from resolveflow.jobs.queue import TERMINAL, claim, event, fence, heartbeat
 from resolveflow.settings import get_settings
 from resolveflow.storage.db import sessions
-from resolveflow.storage.models import Run, now
+from resolveflow.storage.models import Job, Proposal, Run, now
 
 stop = threading.Event()
 
@@ -115,6 +117,41 @@ def fail(factory, run_id, owner, code):
         pass
 
 
+def expire_pending(factory):
+    with factory() as s:
+        ids = list(s.scalars(select(Run.id).where(Run.status == "awaiting_approval").limit(100)))
+    for id_ in ids:
+        with factory.begin() as s:
+            run = s.scalar(select(Run).where(Run.id == id_).with_for_update(skip_locked=True))
+            if not run or run.status != "awaiting_approval":
+                continue
+            job = s.scalar(select(Job).where(Job.run_id == id_).with_for_update())
+            proposal = s.get(Proposal, run.proposal_id)
+            if (
+                job
+                and proposal
+                and job.status == "waiting"
+                and proposal.status == "pending"
+                and proposal.expires_at <= clock(run)
+            ):
+                proposal.status = "expired"
+                run.status, job.status = "escalated", "completed"
+                run.updated_at = now()
+                run.final = final_for(
+                    s,
+                    run,
+                    "escalated",
+                    "Approval expired. Start a fresh investigation to obtain an updated proposal.",
+                )
+                event(s, id_, "approval_expired", {"proposal_id": proposal.id})
+
+
+def deliver(factory, found):
+    # Each concurrent delivery owns its checkpoint connection and workflow.
+    with PostgresSaver.from_conn_string(get_settings().checkpoint_url) as saver:
+        process(factory, saver, *found)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
@@ -122,17 +159,26 @@ def main():
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     factory = sessions()
-    with PostgresSaver.from_conn_string(get_settings().checkpoint_url) as saver:
+    if args.once:
+        if found := claim(factory):
+            deliver(factory, found)
+        return
+    last_sweep = 0.0
+    with ThreadPoolExecutor(max_workers=get_settings().worker_concurrency) as pool:
+        pending: set[Future] = set()
         while not stop.is_set():
-            found = claim(factory)
+            completed = {future for future in pending if future.done()}
+            for future in completed:
+                future.result()
+            pending -= completed
+            if time.monotonic() - last_sweep >= 30:
+                expire_pending(factory)
+                last_sweep = time.monotonic()
+            found = claim(factory) if len(pending) < get_settings().worker_concurrency else None
             if found:
-                process(factory, saver, *found)
-            elif args.once:
-                break
+                pending.add(pool.submit(deliver, factory, found))
             else:
                 stop.wait(get_settings().worker_idle_seconds)
-            if args.once and found:
-                break
 
 
 if __name__ == "__main__":

@@ -1,18 +1,77 @@
 # ResolveFlow
 
-[![Verify sandbox](https://github.com/cyash24f3/resolveflow/actions/workflows/ci.yml/badge.svg)](https://github.com/cyash24f3/resolveflow/actions/workflows/ci.yml)
+**A support operations agent that investigates orders, asks for missing evidence, and pauses for approval before changing business records.**
 
-**Live app: [resolveflow-wojr.onrender.com](https://resolveflow-wojr.onrender.com)** · [Public source](https://github.com/cyash24f3/resolveflow)
+[Try the live app](https://resolveflow-wojr.onrender.com) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md) · [API guide](docs/API.md)
 
-A support operations agent with typed tools, persistent investigations, exact supervisor approvals, and restart-safe **simulated** business actions. Built as an AI engineering portfolio project. Every customer, order, payment, refund and replacement is fictional.
+ResolveFlow combines model-selected tools with deterministic business rules and a durable PostgreSQL workflow. It handles damaged-item replacements, eligible refunds, cancellations, and read-only order-status questions. Every customer, order, payment and business action is fictional.
 
-The model can select investigative tools. Deterministic code controls scope, eligibility and writes. The default fixture demonstrates plumbing without credentials; it does **not** demonstrate model reasoning quality.
+## Try the complete workflow
 
-## Run for free on macOS
+1. Open the live app and select **Try the live workflow**. You receive your own isolated workspace and three fresh orders; no password is required for the public sandbox.
+2. Select **Damaged item**, **Delayed order**, **Cancellation**, or **Order status** to populate a request using your actual sandbox order IDs. You can also write your own request.
+3. Choose **AI investigation** and submit. Watch persisted observations appear as the worker inspects the order, shipment and policy. Missing information produces a clarification form.
+4. For an eligible business action, inspect the exact proposal. Switch to **Demo supervisor**, select the request, and approve or reject it.
+5. Inspect **Sandbox records**. An approval creates a linked ledger entry only after the worker rechecks the policy, evidence, approval and current order revision. A rejection creates no effect.
 
-Python 3.12, uv and Docker Desktop are required. Apple silicon is supported. On the requested MacBook Air M5 (24 GB / 1 TB), run PostgreSQL and the backend locally; no paid database, vector service, hosted agent platform or cloud worker is required.
+Public role switching is an interactive demonstration inside your own fictional workspace. Named operator, supervisor and developer accounts are separate from public demo access. Free hosting can sleep when idle; an initial load may take longer. Queued state survives instance restarts.
 
-```sh
+## What the model does
+
+The model selects typed investigative tools, interprets the request, and asks for missing information. Application code authorizes customer access, enforces policy, binds evidence to proposals, records supervisor decisions, and executes protected actions.
+
+The hosted preference is **Gemini 3.8 Flash**. Its published input window is 1,048,576 tokens, and Google offers a free tier. The application keeps its own smaller context, turn, token and time budgets. The configured free fallbacks are **Gemini 3.6 Flash** and **Gemini 3.5 Flash-Lite**. Daily model-quota exhaustion can select another configured model; the execution details and provider events record the model actually used. Context from a different model is carried as observed data, without replaying its opaque thought signatures.
+
+Free allowances are account-specific. The integration check encountered a 20-request daily allowance for Gemini 3.8 Flash; one investigation uses several requests. This is why an exhausted preferred model does not make the entire demo unusable. There is no automatic switch to a paid model or scripted fixture.
+
+Sources: [Gemini model capabilities](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash), [free-tier pricing](https://ai.google.dev/gemini-api/docs/pricing), [account quotas](https://ai.google.dev/gemini-api/docs/rate-limits).
+
+| Mode | Decision source | Purpose |
+| --- | --- | --- |
+| `provider` | Real configured model tool calls | Interactive AI investigations and live integration checks |
+| `baseline` | Conservative, inspectable rules | Reproducible reference workflow; ambiguity asks a question |
+| `fixture` | Scripted adapter | Credential-free plumbing and recovery tests |
+
+Baseline and fixture share code and are not independent competing AI systems. A successful scripted run is not evidence of model reasoning quality.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser[Operator / supervisor UI] --> API[FastAPI: identity, scope, CSRF, limits]
+  API --> DB[(PostgreSQL: runs, jobs, records, audit)]
+  Worker[Bounded concurrent worker] --> Graph[LangGraph investigation]
+  Graph --> Model[Configured model API]
+  Graph --> Tools[Typed investigative tools]
+  Tools --> Rules[Deterministic business policy]
+  Rules --> DB
+  Graph --> Checkpoints[(Fenced PostgreSQL checkpoints)]
+  API --> Approval[Exact proposal decision]
+  Approval --> DB
+  Graph --> Execute[Server-only action executor]
+  Execute --> DB
+```
+
+One modular Python application, a separately supervised worker process, and PostgreSQL. The worker can investigate two independent requests concurrently by default; each delivery owns its checkpoint connection. Model scheduling is bounded, and provider calls do not hold business transactions open.
+
+### Reliability properties
+
+- **Exact approval:** the decision binds to an immutable proposal hash, workspace, revisions and expiry. Developer access does not grant supervisor permission.
+- **Fresh execution checks:** the executor locks the order and rechecks its revision, current policy and evidence before committing.
+- **Cumulative refund limits:** a shipping refund cannot exceed the remaining unrefunded shipping fee, including refunds from other investigations.
+- **Atomic sandbox effects:** the order update, ledger operation, approval consumption, effect and audit event commit in one transaction.
+- **Replay protection:** repeated delivery of an operation returns the committed result. A reused key with a different payload conflicts.
+- **Human-input recovery:** a clarification or approval that arrives before its interrupt checkpoint is handled on replay instead of waiting for another reply.
+- **Relevant evidence:** an eligibility citation must match the proposed order, action parameters, facts and order revision; the support case must match the proposal.
+- **Useful failure paths:** missing business records escalate, partial clarification preserves remaining questions, expired approvals are retired, and failed or stale investigations can be started afresh with a new proposal and approval.
+
+These guarantees apply to the fictional effects committed in this PostgreSQL database. A real payment or shipping integration would additionally need provider idempotency keys and reconciliation for ambiguous external outcomes. ResolveFlow does not claim distributed exactly-once execution.
+
+## Run locally
+
+Requirements: Python 3.12, [uv](https://docs.astral.sh/uv/), and Docker with Compose.
+
+```bash
 git clone https://github.com/cyash24f3/resolveflow.git
 cd resolveflow
 uv sync --frozen
@@ -20,11 +79,11 @@ uv run python scripts/bootstrap.py
 docker compose up -d --build
 ```
 
-Open **http://localhost:8090**. Choose Support operator in the isolated demo, submit a request, then switch to Supervisor to approve the exact proposal. Developer sessions expose traces and evaluation. Local demo credentials are randomly generated in `.env` and ignored by Git. The one-click demo is explicitly isolated by loopback port bindings and a fictional workspace. Disable it for any remote deployment.
+Open [localhost:8090](http://localhost:8090). The local demo has operator, supervisor and developer role buttons. Bootstrap generates distinct private credentials in `.env` and preserves existing settings. Compose binds public ports to loopback. Database state is stored in a named volume.
 
-To run Python services directly while keeping PostgreSQL in Docker:
+To run the Python processes directly with only PostgreSQL in Docker:
 
-```sh
+```bash
 docker compose up -d db
 uv run python -m resolveflow.cli init
 uv run uvicorn resolveflow.api.app:app --host 127.0.0.1 --port 8090
@@ -32,64 +91,84 @@ uv run uvicorn resolveflow.api.app:app --host 127.0.0.1 --port 8090
 uv run python -m resolveflow.jobs.worker
 ```
 
-Stop with `docker compose down`; the named volume retains the database and checkpoints. **Do not use `down -v` if you want to keep runs.** Initialization is idempotent. A fresh checkout does not need model credentials.
+Stop with `docker compose down`. Removing the volume with `down -v` deletes local data.
 
-## Try the complete journey
+### Enable real inference
 
-1. As an operator, submit: `My lamp arrived damaged. Please replace it.` Choose **Fixture**.
-2. Supply `ORD-1001` when asked. Then supply a damage description, report timestamp `2026-09-10T10:00:00+00:00`, and sandbox photo-review attestation.
-3. Inspect order/tracking observations, purchase-date policy `POL-2026`, deterministic eligibility, case and exact proposal. Nothing has been replaced yet.
-4. Switch to Supervisor, select the request and approve. Inspect the uniquely linked replacement in Sandbox records. A rejection creates no protected effect.
-5. For a shipping-fee refund, submit `My order ORD-1002 is delayed. Refund the shipping fee.` For cancellation, use `Please cancel ORD-1003.` Each eligible effect needs approval.
+Use a Google AI Studio project on the free tier. Put the key in your private `.env`, then set:
 
-Seed dates are fictional fixed dates; evaluation uses a frozen clock. The UI uses the real observation clock. Photo review is an operator attestation in this sandbox, not image understanding.
+```dotenv
+PROVIDER_ENABLED=true
+PROVIDER_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+DOCKER_PROVIDER_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+PROVIDER_MODEL=gemini-3.8-flash
+PROVIDER_FALLBACK_MODELS=["gemini-3.6-flash","gemini-3.5-flash-lite"]
+PROVIDER_REASONING_EFFORT=medium
+PROVIDER_MAX_OUTPUT_TOKENS=4096
+PROVIDER_MIN_INTERVAL_SECONDS=6
+```
 
-![Actual application and persisted ledger](docs/evidence/sandbox-ledger.png)
-
-## Execution modes
-
-| Mode | Decisions | Credentials | What it establishes |
-|---|---|---|---|
-| `baseline` | Inspectable fixed decision rules | None | Shared tools, policy and approval workflow |
-| `fixture` | Inspectable scripted adapter | None | Plumbing, UI and recovery only |
-| `provider` | Actual OpenAI-compatible model tool calls | Local Ollama or configured free-tier key | Live orchestration, only after a real run is verified |
-
-Live mode is disabled by default and never falls back to a fixture. See [free services and Mac setup](docs/FREE_TIERS.md). Provider request/timeout/repair budgets are bounded; unknown usage stays unknown. No live provider was installed or called during the default verification.
-
-## Deploy online for free
-
-[`render.yaml`](render.yaml) prepares one free Render Python web service and a separately provisioned Neon Free Plan database. The hosted runtime runs the API and worker as separate supervised processes, keeps all durable state in PostgreSQL, disables local demo sign-in, and requires secure cookies and strong role passwords. Visitors can view a read-only example without credentials.
-
-The [live HTTPS app](https://resolveflow-wojr.onrender.com) is deployed in the `cyash` Render workspace (Free, Ohio), using a dedicated Neon Free database in AWS US East 2 capped at 0.25 CU. It runs independently of the developer’s Mac. Select **View public example** without a password, or use privately shared role credentials to investigate fictional requests. Public HTTPS checks verified login, scope, CSRF, clarification, exact approval, rejection and the actual ledger. A real Render redeploy preserved the same completed investigation, rejected investigation and exact ledger effect without duplication.
-
-Follow the [cloud deployment steps and evidence](docs/DEPLOYMENT.md). This service was created from the public Git URL. The account’s GitHub provider is not connected, so deployment is explicit after reviewing passing GitHub checks; pushes alone do not update Render. The Blueprint can enable deployment after checks once the provider is connected. Free hosting sleeps when idle; requests wake the service and queued work resumes from persistent state. A live inference provider remains optional and disabled by default.
+Set `PROVIDER_API_KEY` privately; never commit it. Restart the API and worker after configuration changes. For local Ollama, configure its OpenAI-compatible endpoint and installed tool-capable model instead; clear the hosted fallback list and reasoning setting if unsupported. An unavailable provider produces a visible failure rather than simulated model output.
 
 ## Verify
 
-```sh
+```bash
 uv run ruff check src tests scripts migrations
 uv run ruff format --check src tests scripts migrations
 uv run mypy src
 uv run pytest -q
-uv run python -m resolveflow.evaluation.runner --split ci
+uv run python -m resolveflow.evaluation.runner --split ci --systems baseline fixture
 uv run python scripts/recovery_demo.py
-uv run python scripts/load_demo.py
-# Verify the committed version through a local clone and isolated DB schema:
-uv run python scripts/clean_checkout.py
-# With the API and worker running (uses a separate fresh sandbox order):
-uv run playwright install chromium
-uv run python scripts/browser_smoke.py
 ```
 
-Tests and evaluation create random PostgreSQL schemas and drop them at completion; they do not reset your demo workspace. This development DB user needs schema creation permission. Fault injection is CLI-only. Full frozen evaluation:
+Tests create isolated PostgreSQL schemas and remove them afterwards. They do not reset your demo workspace. The database role must be allowed to create schemas. CI supplies disposable PostgreSQL and never calls a paid model.
 
-```sh
-uv run python -m resolveflow.evaluation.runner --split development
-uv run python -m resolveflow.evaluation.runner --split test
+The regression suite covers approval/clarification checkpoint races, separate shipping-refund requests, misleading and negated intent, partial facts, mismatched evidence, missing records, logout revocation, named identities, public-workspace isolation, body limits, throttling, and stale-investigation recovery.
+
+For the larger deterministic evaluation:
+
+```bash
+uv run python -m resolveflow.evaluation.runner --split development --systems baseline
+uv run python -m resolveflow.evaluation.runner --split test --systems baseline
 ```
 
-100 AI-authored synthetic families are frozen 35 development / 65 test, with 20 templates and five separately seeded orders per template. There is no human review claim. Gold outcomes stay outside agent-visible state. Reports show waiting/rejection outcomes, assertions, fault firing, actual ledger effects, hashes, failures, usage, and explicit denominators. Review sheets remain unfilled. Raw outputs are ignored; intentionally exported fictional evidence is in `docs/evidence`.
+For a deliberately bounded real-model check, with a free provider already configured:
 
-See [acceptance evidence](docs/ACCEPTANCE.md), [evaluation limitations](docs/EVALUATION.md), [architecture and transactions](docs/ARCHITECTURE.md), [policy](docs/POLICY.md), [API examples](docs/API.md), [deployment](docs/DEPLOYMENT.md), and [learning guide](docs/LEARNING.md).
+```bash
+uv run python -m resolveflow.evaluation.runner \
+  --split ci --systems provider --allow-live --limit 5
+```
 
-Remote HTTPS deployment is verified separately from the local tests. The live-provider comparison and human semantic review remain **unverified**. Synthetic fixture/baseline passes are not production accuracy, a security guarantee, or evidence that a model resisted injection.
+The v2 dataset contains 100 AI-authored synthetic episodes: seven development categories and thirteen test categories, with five separately seeded orders each. Categories do not cross the development/test split. Expected actions and outcomes stay in the evaluator. An independent ledger oracle checks policy and approval invariants. Human semantic review remains pending; synthetic pass rates are not production accuracy. Historical v1 reports are retained and identified separately. See [evaluation methodology](docs/EVALUATION.md).
+
+## Accounts and security
+
+Sessions are signed, HTTP-only, CSRF-protected, expire after eight hours, and can be revoked server-side at logout. Remote configuration requires secure cookies, TLS database connections and distinct generated credentials. Passwords for named accounts are stored with scrypt. Persistent request limits and bounded queues protect the demo. Public visitors cannot access developer tools or other visitors' records.
+
+Provision another named account on the application host:
+
+```bash
+uv run python -m resolveflow.cli create-user --username asha --role supervisor
+```
+
+The command prompts privately for a password. The audit record stores the account name rather than just the role. Default role accounts are provisioned from private environment variables during initialization.
+
+Conversation retention is an explicit maintenance command:
+
+```bash
+uv run python -m resolveflow.observability.retention
+```
+
+It redacts old terminal conversations and removes their checkpoints while retaining business audit metadata. It does not erase backups or previously exported evidence.
+
+## Deployment
+
+The existing deployment uses Render Free and Neon Free. [`render.yaml`](render.yaml) records the service configuration; secrets are managed in Render. The API and worker run as separate supervised processes on one instance. PostgreSQL stores all durable state.
+
+The service pulls a public Git URL and uses **manual deployment after CI passes**. A push alone does not deploy it. Changes are verified locally, checked in GitHub Actions, deployed to the exact service, and then checked over public HTTPS. Database changes are tested on an isolated Neon branch before release. See [deployment procedure](docs/DEPLOYMENT.md).
+
+## Scope
+
+The domain deliberately supports one item line and one shipment/payment per order. Photo review is an operator attestation, not image understanding. All refunds, replacements and cancellations are sandbox records; no external money or shipment is sent. Real model availability is subject to the provider's free quotas, and the free host can suspend when idle.
+
+The engineering focus is the boundary between probabilistic investigation and controlled, recoverable business actions.

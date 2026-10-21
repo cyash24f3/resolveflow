@@ -1,9 +1,18 @@
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from resolveflow.domain.common import DomainError, canonical, clock, instant
-from resolveflow.storage.models import Customer, Order, Payment, Policy, Shipment, record
+from resolveflow.storage.models import (
+    Customer,
+    Effect,
+    Order,
+    Payment,
+    Policy,
+    Proposal,
+    Shipment,
+    record,
+)
 
 
 def authorized_order(session, scope, order_id: str) -> Order:
@@ -44,6 +53,9 @@ def eligibility(session, scope, run, args) -> dict:
         "policy_hash": policy.source_hash,
         "order_revision": order.revision,
         "rule_ids": [],
+        "order_id": order.id,
+        "arguments_hash": canonical(args.model_dump()),
+        "facts_hash": canonical(run.facts),
     }
 
     def deny(rule, reason):
@@ -89,8 +101,18 @@ def eligibility(session, scope, run, args) -> dict:
             return deny(
                 "DEL-01", "Delay refund requires an undelivered order at least seven days overdue"
             )
-        if args.amount_minor > order.shipping_minor:
-            return deny("DEL-01", "Delay refund cannot exceed shipping fee")
+        shipping_refunded = session.scalar(
+            select(func.coalesce(func.sum(Effect.amount_minor), 0))
+            .join(Proposal, Effect.proposal_id == Proposal.id)
+            .where(
+                Effect.order_id == order.id,
+                Effect.workspace == scope.workspace,
+                Effect.action == "refund",
+                Proposal.payload["reason"].as_string() == "delay",
+            )
+        )
+        if args.amount_minor > max(0, order.shipping_minor - shipping_refunded):
+            return deny("DEL-01", "Delay refund exceeds the remaining unrefunded shipping fee")
         result["rule_ids"] = ["DEL-01", "REF-01"]
     else:
         customer = session.get(Customer, order.customer_id)

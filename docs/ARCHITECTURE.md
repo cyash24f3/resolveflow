@@ -67,3 +67,15 @@ Cancellation locks the same run/job as execution. If cancellation wins, further 
 `uv run python -m resolveflow.observability.retention` redacts terminal conversations older than RETENTION_DAYS and deletes corresponding checkpoint threads. It retains immutable proposal/approval/ledger audit metadata. Application redaction and checkpoint deletion are separate transactions: rerun after interruption to finish privacy cleanup. It does not erase backups, evaluation exports or the intentionally published fictional evidence. Pending runs are never purged.
 
 One item line and one shipment/payment per order keep the domain manageable. Operator evidence is structured and manually attested; attachment inspection and multi-item partial replacement are outside scope. Observability is persisted structured events plus a protected metrics endpoint, not an external telemetry subscription. Polling reflects actual state; there is no fabricated progress stream.
+
+## Hardening release (October 2026)
+
+The worker now processes up to `WORKER_CONCURRENCY` independent deliveries, each with its own PostgreSQL checkpointer. The default is two. Waiting nodes check persisted human input before issuing an interrupt, closing the fast-reply/checkpoint race. A maintenance sweep expires pending approvals; the reinvestigate endpoint creates a separate investigation and fresh approval instead of modifying an immutable proposal.
+
+Shipping refunds consult all prior delay-refund effects for the order while the executor holds its order lock. Eligibility observations include an order ID, canonical argument hash, facts hash and revision. Proposals require matching eligibility evidence and a matching case.
+
+Authentication now uses named, scrypt-hashed accounts and database-backed revocable sessions. Public demo visitors receive unique workspaces, customers and orders. Guest supervisor switching is restricted to that visitor's workspace; developer privileges are unavailable to guests and do not imply supervisor permission. Session and request-budget records persist across instance restarts.
+
+The deployed provider preference is Gemini 3.8 Flash, with explicitly configured free Gemini fallbacks for daily quota exhaustion. Each provider event records the selected model. Cross-model history is carried as observations; opaque signatures from another model are not replayed as that model's assistant messages. Model scheduling, output validation, repair and active-time budgets remain bounded.
+
+Read-only status responses and policy-rejection explanations are reconstructed from actual observations. Arbitrary escalation prose remains model-authored and should receive semantic review; referenced identifiers are still checked.

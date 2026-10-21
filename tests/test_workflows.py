@@ -30,7 +30,7 @@ def test_full_approval_journey(db, make_run, work, supervisor, mode):
 
 def test_clarification_then_resume(db, make_run, work):
     factory, _, _ = db
-    id_ = make_run(message="My lamp arrived damaged.", facts={})
+    id_ = make_run(message="My lamp arrived damaged. Please replace it.", facts={})
     run = work()
     assert run.status == "awaiting_information"
     assert run.clarification["fields"] == ["order_id"]

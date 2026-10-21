@@ -2,7 +2,7 @@
 
 from alembic import op
 
-from resolveflow.storage.models import Base
+from migrations.schema_initial import Base
 
 revision = "001"
 down_revision = None

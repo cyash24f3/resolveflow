@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import timedelta
 
 from pydantic import ValidationError
@@ -17,7 +18,7 @@ from resolveflow.storage.models import (
     record,
     uid,
 )
-from resolveflow.tools.contracts import TOOLS
+from resolveflow.tools.contracts import TOOLS, ResolutionArgs
 
 
 class ToolExecutor:
@@ -30,8 +31,14 @@ class ToolExecutor:
         try:
             args = TOOLS[name][0].model_validate(raw)
         except ValidationError as exc:
+            details = "; ".join(
+                ".".join(str(part) for part in error["loc"]) + ": " + error["msg"]
+                for error in exc.errors(
+                    include_input=False, include_context=False, include_url=False
+                )
+            )
             raise DomainError(
-                "invalid_arguments", "Arguments do not match the tool schema", 422
+                "invalid_arguments", "Arguments do not match the tool schema. " + details[:500], 422
             ) from exc
         payload_hash = canonical({"name": name, "args": args.model_dump()})
         op_id = f"tool:{self.run_id}:{call_id}"
@@ -77,6 +84,10 @@ class ToolExecutor:
             return result
 
     def _dispatch(self, s, run, name, args):
+        if name == "finish_investigation":
+            raise DomainError(
+                "invalid_arguments", "Final responses are handled by the workflow router", 422
+            )
         if name == "request_clarification":
             fields = list(dict.fromkeys(args.fields))
             if any(run.facts.get(f) for f in fields):
@@ -86,16 +97,33 @@ class ToolExecutor:
             run.clarification = {"fields": fields, "question": args.question}
             return run.clarification
         order = authorized_order(s, self.scope, args.order_id)
+        mentioned = set(re.findall(r"\bORD-[A-Za-z0-9]+\b", run.request, re.I))
+        selected_order = run.facts.get("order_id") or (
+            next(iter(mentioned)).upper() if len(mentioned) == 1 else None
+        )
+        if selected_order and args.order_id != selected_order:
+            raise DomainError(
+                "invalid_arguments", "Tool order differs from the operator-selected order", 422
+            )
         if name == "get_order":
+            payment = s.scalar(select(Payment).where(Payment.order_id == order.id))
+            if not payment:
+                raise DomainError(
+                    "record_conflict", "Payment record is missing; escalate for review"
+                )
             return record(order) | {
                 "line_items": [
                     record(x)
                     for x in s.scalars(select(LineItem).where(LineItem.order_id == order.id))
                 ],
-                "payment": record(s.scalar(select(Payment).where(Payment.order_id == order.id))),
+                "payment": record(payment),
             }
         if name == "get_tracking":
             shipment = s.scalar(select(Shipment).where(Shipment.order_id == order.id))
+            if not shipment:
+                raise DomainError(
+                    "record_conflict", "Shipment record is missing; escalate for review"
+                )
             return {
                 "order_id": order.id,
                 "order_revision": order.revision,
@@ -137,8 +165,16 @@ class ToolExecutor:
             checks = [
                 o
                 for o in known.values()
-                if o["tool"] == "check_resolution_eligibility" and o["data"]["status"] == "eligible"
+                if o["tool"] == "check_resolution_eligibility"
+                and o["data"]["status"] == "eligible"
+                and o["data"].get("order_id") == order.id
+                and o["data"].get("arguments_hash")
+                == canonical({k: getattr(args, k) for k in ResolutionArgs.model_fields})
+                and o["data"].get("facts_hash") == canonical(run.facts)
+                and o["data"].get("order_revision") == order.revision
             ]
+            if not args.evidence_ids:
+                args.evidence_ids = [o["observation_id"] for o in checks][-12:]
             if not any(o["observation_id"] in args.evidence_ids for o in checks):
                 raise DomainError(
                     "policy_ineligible", "Proposal must cite an eligible deterministic check"
@@ -163,8 +199,13 @@ class ToolExecutor:
                 if existing.payload_hash != canonical(payload):
                     raise DomainError("conflict", "A different immutable proposal already exists")
                 return record(existing)
-            if not s.scalar(select(Case).where(Case.run_id == run.id)):
+            case = s.scalar(select(Case).where(Case.run_id == run.id))
+            if not case:
                 raise DomainError("conflict", "Create a support case before proposing")
+            if case.order_id != order.id or case.category != args.reason:
+                raise DomainError(
+                    "conflict", "Case, proposal order and resolution reason must match"
+                )
             proposal = Proposal(
                 run_id=run.id,
                 workspace=self.scope.workspace,

@@ -69,3 +69,15 @@ def test_retention_removes_checkpoint_conversation_but_keeps_ledger(db, make_run
         run = s.get(Run, id_)
         assert run.facts == {} and run.state == {"retention_redacted": True}
         assert len(list(s.scalars(select(Effect)))) == 1
+
+
+def test_v2_categories_do_not_cross_splits_and_labels_stay_private():
+    from resolveflow.evaluation.scenarios import generate
+
+    families = generate()
+    development = {f["category"] for f in families if f["split"] == "development"}
+    test = {f["category"] for f in families if f["split"] == "test"}
+    assert len(development) == 7 and len(test) == 13
+    assert development.isdisjoint(test)
+    frozen = json.loads(Path("data/sample/scenarios-v2.json").read_text())
+    assert canonical(families) == frozen["family_hash"]
