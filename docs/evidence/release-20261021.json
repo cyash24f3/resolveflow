@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-21",
+  "application_version": "0.2.0",
+  "runtime_commit": "1bd0015610cf18403a715a3e9a327fecaa3d3bf3",
+  "github_ci": {
+    "url": "https://github.com/cyash24f3/resolveflow/actions/runs/39619487289",
+    "conclusion": "success",
+    "postgres_tests_passed": 84
+  },
+  "deterministic_v2": {
+    "system": "baseline",
+    "completed": 100,
+    "scheduled": 100,
+    "policy_violations": 0,
+    "human_semantic_review": "pending"
+  },
+  "migration": {
+    "project": "bold-cake-51114732",
+    "test_branch": "br-fragrant-bonus-b56of2kx",
+    "revision": "003",
+    "branch_expires_at": "2026-10-22T12:00:00Z",
+    "preserved_counts": {
+      "orders": 5,
+      "effects": 1,
+      "proposals": 2,
+      "approvals": 2,
+      "runs": 2
+    }
+  },
+  "deployment": {
+    "service_id": "srv-daugnmjncjis73fisc90",
+    "deploy_id": "dep-dbccvj1srm7s738d3800",
+    "status": "live",
+    "url": "https://resolveflow-wojr.onrender.com",
+    "finished_at": "2026-10-21T14:45:50.241903Z",
+    "health": "ok",
+    "readiness": "ready"
+  },
+  "preceding_public_attempts": [
+    {
+      "run_id": "d986a538-fdb5-49d7-9e17-b795a1c121d6",
+      "application_result": "awaiting_approval",
+      "browser_result": "220-second harness deadline exceeded; valid proposal persisted after approximately 233 seconds",
+      "repair": "Harness now includes queue/polling overhead beyond the 240-second active investigation budget."
+    },
+    {
+      "run_id": "4d18d0aa-b9ff-4a67-8a2f-357370d3e909",
+      "application_result": "awaiting_approval",
+      "actual_model": "gemini-3.5-flash-lite",
+      "model_calls": 6,
+      "tool_calls": 6,
+      "browser_result": "Public GET read timeout interrupted the browser session; database independently confirmed the valid proposal.",
+      "repair": "Bounded read polling tolerates transport errors; a private session file can resume an existing pending request."
+    },
+    {
+      "run_id": "c40bb121-987f-4f3c-8021-708e86a86818",
+      "application_result": "failed",
+      "explanation": "Case, proposal order and resolution reason must match",
+      "protected_effects": 0,
+      "repair_pull_request": "https://github.com/cyash24f3/resolveflow/pull/2",
+      "repair": "Require an explicit reason in model tool definitions and reject a non-cancellation reason for cancellation actions before eligibility or proposal persistence."
+    }
+  ],
+  "public_browser": {
+    "verified": true,
+    "mode": "provider",
+    "actual_model": "gemini-3.5-flash-lite",
+    "approved_run_id": "e4106db6-b700-4e95-a824-3d9e81c60b4c",
+    "approved_effects": 1,
+    "rejected_run_id": "ea15b8b6-9f3f-4179-850a-63aa6378fe1a",
+    "rejected_effects": 0,
+    "cross_visitor_access_blocked": true,
+    "mobile_overflow": false,
+    "browser_errors": [],
+    "url": "https://resolveflow-wojr.onrender.com",
+    "journey_start": "Earlier failed request restarted through the public reinvestigation button, then resumed in the browser for approval/rejection and isolation checks."
+  },
+  "scope": "Fictional business records. Bounded live integration checks, not a model-quality benchmark. Free model quotas and idle host suspension still apply.",
+  "preceding_deployment": {
+    "service_id": "srv-daugnmjncjis73fisc90",
+    "deploy_id": "dep-dbccf52fngtc739oqiug",
+    "status": "live",
+    "finished_at": "2026-10-21T14:10:46.062383Z",
+    "url": "https://resolveflow-wojr.onrender.com",
+    "health": "ok",
+    "readiness": "ready",
+    "configuration": {
+      "public_demo": true,
+      "provider_enabled": true,
+      "default_mode": "provider",
+      "preferred_model": "gemini-3.8-flash"
+    }
+  },
+  "pull_requests": [
+    "https://github.com/cyash24f3/resolveflow/pull/1",
+    "https://github.com/cyash24f3/resolveflow/pull/2"
+  ],
+  "reinvestigation": {
+    "previous_run_id": "c40bb121-987f-4f3c-8021-708e86a86818",
+    "fresh_run_id": "e4106db6-b700-4e95-a824-3d9e81c60b4c",
+    "trigger": "public browser reinvestigate control"
+  },
+  "database_postconditions": {
+    "run_id": "e4106db6-b700-4e95-a824-3d9e81c60b4c",
+    "cancelled": true,
+    "order_revision": 2,
+    "approval_consumed": true,
+    "committed_effects": 1
+  },
+  "browser_screenshot": "live-workflow-20261021.png"
+}

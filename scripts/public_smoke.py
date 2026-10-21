@@ -30,6 +30,13 @@ def main():
             viewport={"width": 1440, "height": 1000},
             storage_state=args.session_state if args.resume_run else None,
         )
+        if args.resume_run and any(cookie["name"] == "rf_guest" for cookie in context.cookies()):
+            # A previous role switch may have revoked the saved session. The
+            # signed guest cookie restores the same isolated workspace.
+            renewed = context.request.post(
+                args.base_url + "/api/v1/auth/guest", data={"role": "operator"}
+            )
+            assert renewed.status == 200
         page = context.new_page()
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(args.base_url, wait_until="domcontentloaded", timeout=120000)
@@ -73,7 +80,9 @@ def main():
 
         pending = wait_for(run_id, ["awaiting_approval"])
         assert pending["committed_effects"] == []
+        page.locator(f'#content [data-run="{run_id}"]').click(timeout=15000)
         page.locator('#content [data-guest="supervisor"]').click(timeout=15000)
+        page.locator('#content [data-guest="supervisor"]').wait_for(state="hidden")
         page.locator(f'#content [data-run="{run_id}"]').click()
         page.locator('#content [data-decision="approve"]').click()
         completed = wait_for(run_id, ["completed"])
@@ -86,6 +95,7 @@ def main():
         # Exercise rejection through the same user-visible controls.
         page.locator("#account").click()
         page.locator('#login-dialog [data-guest="operator"]').click()
+        page.locator(".detail-title").wait_for(state="hidden")
         page.locator('[data-example="delay"]').click()
         page.locator('select[name="mode"]').select_option("baseline")
         with page.expect_response(
@@ -95,6 +105,7 @@ def main():
         rejected_id = submitted.value.json()["id"]
         wait_for(rejected_id, ["awaiting_approval"])
         page.locator('#content [data-guest="supervisor"]').click(timeout=15000)
+        page.locator('#content [data-guest="supervisor"]').wait_for(state="hidden")
         page.locator(f'#content [data-run="{rejected_id}"]').click()
         page.locator('#content [data-decision="reject"]').click()
         rejected = wait_for(rejected_id, ["rejected"])
@@ -140,9 +151,13 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except BrowserError:
+    except BrowserError as exc:
         # Playwright exception details can include Cookie headers. Keep private
         # session material out of exported verification logs.
-        raise SystemExit(
-            "Browser operation failed; check connectivity and private session state."
-        ) from None
+        safe_message = str(exc).split("Call log:")[0].strip()
+        locator_details = [
+            line.strip() for line in str(exc).splitlines() if "waiting for locator(" in line
+        ]
+        if locator_details:
+            safe_message += " " + "; ".join(locator_details)
+        raise SystemExit("Browser operation failed: " + safe_message) from None
